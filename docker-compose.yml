@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: assetly-postgres
+    environment:
+      POSTGRES_DB: assetly
+      POSTGRES_USER: assetly
+      POSTGRES_PASSWORD: assetly
+    ports:
+      - "5432:5432"
+    volumes:
+      - assetly-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U assetly -d assetly"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  assetly-postgres-data:
