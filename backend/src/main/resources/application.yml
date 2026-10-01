@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: assetly-backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/assetly}
+    username: ${SPRING_DATASOURCE_USERNAME:assetly}
+    password: ${SPRING_DATASOURCE_PASSWORD:assetly}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+
+server:
+  port: 8080
+
+assetly:
+  jwt:
+    secret: ${JWT_SECRET:change-this-secret-before-production}
+    access-token-expires-in: ${JWT_ACCESS_TOKEN_EXPIRES_IN:3600}
