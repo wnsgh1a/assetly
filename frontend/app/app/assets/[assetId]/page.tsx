@@ -5,13 +5,17 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { AssetForm, statusLabels } from "@/components/asset-form";
+import { AssetQr } from "@/components/asset-qr";
+import { HistoryList } from "@/components/history-list";
 import { WorkspaceShell } from "@/components/workspace-shell";
 import { ApiError, apiRequest } from "@/lib/api";
-import type { Asset, Organization } from "@/lib/types";
+import type { Asset, AssetHistoryPage, Organization } from "@/lib/types";
 
 function AssetDetail({ organization, assetId }: { organization: Organization; assetId: string }) {
   const router = useRouter();
   const [asset, setAsset] = useState<Asset>();
+  const [histories, setHistories] = useState<AssetHistoryPage>();
+  const [historyVersion, setHistoryVersion] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -30,6 +34,11 @@ function AssetDetail({ organization, assetId }: { organization: Organization; as
   }, [assetId, organization.id]);
 
   useEffect(() => { void loadAsset(); }, [loadAsset]);
+  useEffect(() => {
+    apiRequest<AssetHistoryPage>(`/organizations/${organization.id}/assets/${assetId}/histories?size=20`)
+      .then(setHistories)
+      .catch(() => setHistories(undefined));
+  }, [assetId, historyVersion, organization.id]);
 
   async function remove() {
     if (!asset || !window.confirm(`'${asset.name}' 자산을 비활성화할까요?`)) return;
@@ -49,14 +58,21 @@ function AssetDetail({ organization, assetId }: { organization: Organization; as
 
   return (
     <section className="px-5 py-7 md:px-8 md:py-8">
-      <div className="max-w-3xl">
+      <div className="max-w-5xl">
         <Link className="inline-flex items-center gap-2 text-sm text-muted hover:text-ink" href="/app/assets"><ArrowLeft size={16} />자산 목록</Link>
         <div className="mb-7 mt-5 flex flex-col justify-between gap-4 border-b border-line pb-5 sm:flex-row sm:items-end">
           <div><p className="text-sm text-muted">{asset.assetCode}</p><h2 className="mt-1 text-2xl font-semibold">{asset.name}</h2><p className="mt-2 text-xs text-muted">{statusLabels[asset.status]} · 공개 코드 {asset.publicCode}</p></div>
           {canDelete ? <button className="flex h-9 items-center justify-center gap-2 border border-red-200 px-3 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50" disabled={deleting} onClick={() => void remove()} type="button"><Trash2 size={15} />{deleting ? "처리 중" : "비활성화"}</button> : null}
         </div>
         {error ? <p className="mb-5 border-l-2 border-red-600 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p> : null}
-        <AssetForm asset={asset} key={asset.updatedAt} onSaved={setAsset} organization={organization} />
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <AssetForm asset={asset} key={asset.updatedAt} onSaved={(saved) => { setAsset(saved); setHistoryVersion((value) => value + 1); }} organization={organization} />
+          <AssetQr assetCode={asset.assetCode} publicCode={asset.publicCode} />
+        </div>
+        <section className="mt-10">
+          <div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-semibold">자산 변경 이력</h3><Link className="text-xs text-muted hover:text-ink" href="/app/history">전체 이력</Link></div>
+          <HistoryList items={histories?.items ?? []} />
+        </section>
       </div>
     </section>
   );

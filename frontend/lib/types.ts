@@ -59,6 +59,41 @@ export type AssetPage = {
   totalPages: number;
 };
 
+export type AssetHistoryAction =
+  | "CREATED"
+  | "UPDATED"
+  | "STATUS_CHANGED"
+  | "LOCATION_CHANGED"
+  | "ASSIGNEE_CHANGED"
+  | "DELETED";
+
+export type AssetHistory = {
+  id: number;
+  asset: { id: number; assetCode: string; name: string; active: boolean };
+  actor: { id: number; name: string; email: string };
+  actionType: AssetHistoryAction;
+  fieldName: string | null;
+  beforeValue: string | null;
+  afterValue: string | null;
+  memo: string | null;
+  createdAt: string;
+};
+
+export type AssetHistoryPage = {
+  items: AssetHistory[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+};
+
+export type PublicAsset = {
+  organizationId: number;
+  organizationName: string;
+  myRole: MemberRole;
+  asset: Asset;
+};
+
 export type LoginResponse = {
   accessToken: string;
   user: { id: number; email: string; name: string };

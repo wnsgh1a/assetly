@@ -9,6 +9,10 @@ public interface AssetRepository extends JpaRepository<Asset, Long>, JpaSpecific
 
     Optional<Asset> findByIdAndOrganizationIdAndDeletedAtIsNull(Long id, Long organizationId);
 
+    Optional<Asset> findByIdAndOrganizationId(Long id, Long organizationId);
+
+    Optional<Asset> findByPublicCodeAndDeletedAtIsNull(String publicCode);
+
     boolean existsByPublicCode(String publicCode);
 
     boolean existsByOrganizationIdAndAssetCode(Long organizationId, String assetCode);

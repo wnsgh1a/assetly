@@ -439,7 +439,8 @@ GET /api/assets/public/{publicCode}
 
 - 로그인 필요
 - 사용자가 해당 자산의 조직 멤버인지 확인
-- 권한이 있으면 자산 상세 반환
+- 권한이 있으면 `organizationId`, `organizationName`, `myRole`, `asset`을 반환
+- 삭제된 자산과 존재하지 않는 공개 코드는 `404 ASSET_NOT_FOUND`를 반환
 
 ### 자산 수정
 
@@ -469,7 +470,7 @@ Request:
 }
 ```
 
-변경 이력 단계가 구현되면 수정 내역 저장을 이 API에 연결한다.
+실제 값이 바뀐 필드마다 작업자, 변경 전 값과 변경 후 값을 이력으로 저장한다.
 
 - OWNER와 ADMIN은 전체 필드를 수정할 수 있다.
 - MANAGER는 상태, 위치, 담당자만 수정할 수 있다.
@@ -489,7 +490,7 @@ DELETE /api/organizations/{organizationId}/assets/{assetId}
 동작:
 
 - `deleted_at`을 기록해 비활성화하고 일반 목록과 상세 조회에서 제외한다.
-- 삭제 이력 생성은 변경 이력 단계에서 연결한다.
+- 비활성화 작업자와 시각을 `DELETED` 이력으로 저장한다.
 - 조직 밖의 자산 ID는 `404 ASSET_NOT_FOUND`를 반환한다.
 
 ## 6. Asset History API
@@ -503,6 +504,32 @@ GET /api/organizations/{organizationId}/assets/{assetId}/histories
 권한:
 
 - 조직 멤버
+
+Response:
+
+```json
+{
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "asset": { "id": 1, "assetCode": "IT-2026-00132", "name": "MacBook Pro 14", "active": true },
+        "actor": { "id": 3, "name": "김관리", "email": "admin@example.com" },
+        "actionType": "STATUS_CHANGED",
+        "fieldName": "status",
+        "beforeValue": "IN_USE",
+        "afterValue": "REPAIR",
+        "memo": null,
+        "createdAt": "2026-10-02T03:00:00Z"
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1
+  }
+}
+```
 
 ### 조직 전체 이력 조회
 

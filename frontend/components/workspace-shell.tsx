@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Boxes, LogOut, MapPinned, Package, Settings, Users } from "lucide-react";
+import { Boxes, History, LogOut, MapPinned, Package, Settings, Users } from "lucide-react";
 import { ApiError, apiRequest, clearAccessToken } from "@/lib/api";
 import type { Organization } from "@/lib/types";
 
@@ -19,6 +19,7 @@ type WorkspaceShellProps = {
 const navigation = [
   { href: "/app", label: "대시보드", icon: Boxes, restricted: false },
   { href: "/app/assets", label: "자산", icon: Package, restricted: false },
+  { href: "/app/history", label: "변경 이력", icon: History, restricted: false },
   { href: "/app/classification", label: "위치·카테고리", icon: MapPinned, restricted: false },
   { href: "/app/members", label: "멤버", icon: Users, restricted: true },
   { href: "/app/settings", label: "조직 설정", icon: Settings, restricted: false },

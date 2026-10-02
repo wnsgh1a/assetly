@@ -1,6 +1,7 @@
 package com.assetly.dashboard;
 
 import com.assetly.asset.dto.AssetResponse;
+import com.assetly.history.dto.AssetHistoryResponse;
 import java.util.List;
 
 public record DashboardResponse(
@@ -9,6 +10,7 @@ public record DashboardResponse(
         long inUseAssets,
         long repairAssets,
         long lostAssets,
-        List<AssetResponse> recentAssets
+        List<AssetResponse> recentAssets,
+        List<AssetHistoryResponse> recentHistories
 ) {
 }
