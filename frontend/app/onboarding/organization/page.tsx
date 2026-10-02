@@ -3,7 +3,8 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Building2 } from "lucide-react";
-import { ApiError, apiRequest } from "@/lib/api";
+import { ApiError, apiRequest, saveSelectedOrganizationId } from "@/lib/api";
+import type { Organization } from "@/lib/types";
 
 const fieldClass = "mt-2 w-full border border-line bg-white px-3 text-sm outline-none transition-colors focus:border-brand focus:ring-1 focus:ring-brand";
 
@@ -19,10 +20,11 @@ export default function OrganizationOnboardingPage() {
     setError("");
     setSubmitting(true);
     try {
-      await apiRequest("/organizations", {
+      const organization = await apiRequest<Organization>("/organizations", {
         method: "POST",
         body: JSON.stringify({ name, description }),
       });
+      saveSelectedOrganizationId(organization.id);
       router.replace("/app");
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {

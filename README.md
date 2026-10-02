@@ -397,7 +397,7 @@ Assetly는 다음 내용을 설명할 수 있는 프로젝트로 만드는 것�
 
 ## 현재 구현 상태 (2026-10-02)
 
-Phase 1 프로젝트 뼈대부터 Phase 4 QR 현장 접근과 변경 이력까지 구현되어 있습니다.
+Phase 1 프로젝트 뼈대부터 Phase 4 QR 현장 접근과 변경 이력을 완료했고, Phase 5의 조직 전환과 모바일 내비게이션까지 구현되어 있습니다.
 
 완료된 항목:
 
@@ -426,6 +426,10 @@ Phase 1 프로젝트 뼈대부터 Phase 4 QR 현장 접근과 변경 이력까�
 - 로그인 화면과 API 연결
 - 첫 조직 생성 온보딩
 - 로그인 후 조직 유무에 따른 화면 이동
+- 여러 소속 조직 선택·전환과 선택 상태 유지
+- 현재 계정에서 새 조직을 추가하는 진입 경로
+- QR 자산 진입 시 해당 자산의 조직을 활성 조직으로 연결
+- 모바일 조직 선택, 가로 내비게이션과 로그아웃 컨트롤
 - 앱 대시보드 기본 레이아웃
 - 조직 설정 화면과 API 연결
 - 멤버 관리 화면과 API 연결
@@ -444,10 +448,12 @@ Phase 1 프로젝트 뼈대부터 Phase 4 QR 현장 접근과 변경 이력까�
 - JPA 스키마 자동 변경 비활성화와 스키마 검증
 - Maven Wrapper
 - H2 기반 백엔드 테스트 환경
+- Playwright 기반 데스크톱·모바일 브라우저 테스트
 
 검증 결과:
 
 - `frontend`에서 `npm run build` 성공
+- `frontend`에서 `npm run test:e2e` 성공: 4개 통과, 2개 프로젝트 조건부 건너뜀
 - `backend`에서 `.\mvnw.cmd test` 성공: 총 54개 테스트 통과
 - Flyway `V1`~`V4` 마이그레이션 적용과 Hibernate 스키마 검증 성공
 - 상세 기능 테스트 기준과 실행 기록은 `docs/assetly-functional-test-spec.md` 참고
@@ -487,12 +493,19 @@ npm run dev
 
 프론트엔드는 기본적으로 `http://localhost:3000`에서 실행됩니다. Next.js가 `/api/*` 요청을 로컬 백엔드로 전달합니다.
 
+브라우저 자동 테스트는 백엔드와 프론트엔드를 실행한 상태에서 진행합니다.
+
+```powershell
+cd frontend
+npx playwright install chromium
+npm run test:e2e
+```
+
 ## 다음 구현 목표
 
 다음 단계는 Phase 5~7의 제품 마감과 배포 준비입니다.
 
-1. 조직 선택·전환과 모바일 내비게이션 보완
-2. 핵심 브라우저 사용자 흐름 자동화
-3. 운영용 Dockerfile과 환경변수 검증
-4. GitHub Actions 테스트·빌드 자동화
-5. PostgreSQL 운영 구성과 실제 배포
+1. QR 진입과 자산 수정 핵심 브라우저 흐름 자동화
+2. 운영용 Dockerfile과 환경변수 검증
+3. GitHub Actions 테스트·빌드 자동화
+4. PostgreSQL 운영 구성과 실제 배포
