@@ -2,6 +2,7 @@ package com.assetly.organization;
 
 import com.assetly.common.BusinessException;
 import com.assetly.organization.dto.AddOrganizationMemberRequest;
+import com.assetly.organization.dto.AssignableUserResponse;
 import com.assetly.organization.dto.OrganizationMemberResponse;
 import com.assetly.organization.dto.UpdateMemberRoleRequest;
 import com.assetly.user.User;
@@ -33,6 +34,14 @@ public class OrganizationMemberService {
         organizationAccessService.requireRole(organizationId, userId, MemberRole.OWNER, MemberRole.ADMIN);
         return organizationMemberRepository.findAllByOrganizationIdOrderByCreatedAtAsc(organizationId).stream()
                 .map(OrganizationMemberResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AssignableUserResponse> findAssignableUsers(Long userId, Long organizationId) {
+        organizationAccessService.requireMember(organizationId, userId);
+        return organizationMemberRepository.findAllByOrganizationIdOrderByCreatedAtAsc(organizationId).stream()
+                .map(AssignableUserResponse::from)
                 .toList();
     }
 

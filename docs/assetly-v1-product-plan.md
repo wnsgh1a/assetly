@@ -337,7 +337,7 @@ v1.0 대시보드는 단순하지만 업무적으로 의미 있어야 한다.
 
 ### QR
 
-- `GET /api/assets/qr/{assetCode}`
+- `GET /api/assets/public/{publicCode}`
 
 ### Categories
 

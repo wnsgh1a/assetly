@@ -2,6 +2,7 @@ package com.assetly.category;
 
 import com.assetly.category.dto.AssetCategoryRequest;
 import com.assetly.category.dto.AssetCategoryResponse;
+import com.assetly.asset.AssetRepository;
 import com.assetly.common.BusinessException;
 import com.assetly.organization.MemberRole;
 import com.assetly.organization.OrganizationAccessService;
@@ -15,13 +16,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class AssetCategoryService {
 
     private final AssetCategoryRepository assetCategoryRepository;
+    private final AssetRepository assetRepository;
     private final OrganizationAccessService organizationAccessService;
 
     public AssetCategoryService(
             AssetCategoryRepository assetCategoryRepository,
+            AssetRepository assetRepository,
             OrganizationAccessService organizationAccessService
     ) {
         this.assetCategoryRepository = assetCategoryRepository;
+        this.assetRepository = assetRepository;
         this.organizationAccessService = organizationAccessService;
     }
 
@@ -61,7 +65,15 @@ public class AssetCategoryService {
     @Transactional
     public void delete(Long userId, Long organizationId, Long categoryId) {
         requireManager(organizationId, userId);
-        assetCategoryRepository.delete(findCategory(organizationId, categoryId));
+        AssetCategory category = findCategory(organizationId, categoryId);
+        if (assetRepository.existsByOrganizationIdAndCategoryIdAndDeletedAtIsNull(organizationId, categoryId)) {
+            throw new BusinessException(
+                    "CATEGORY_IN_USE",
+                    "사용 중인 카테고리는 삭제할 수 없습니다.",
+                    HttpStatus.CONFLICT
+            );
+        }
+        assetCategoryRepository.delete(category);
     }
 
     private OrganizationMember requireManager(Long organizationId, Long userId) {
