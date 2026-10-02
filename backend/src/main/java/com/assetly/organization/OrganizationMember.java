@@ -60,6 +60,10 @@ public class OrganizationMember extends BaseTimeEntity {
         return new OrganizationMember(organization, user, role);
     }
 
+    public void changeRole(MemberRole role) {
+        this.role = role;
+    }
+
     public Long getId() {
         return id;
     }

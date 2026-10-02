@@ -243,6 +243,45 @@ GET /api/organizations/{organizationId}/members
 - OWNER
 - ADMIN
 
+Response:
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "userId": 1,
+      "email": "owner@example.com",
+      "name": "홍길동",
+      "role": "OWNER",
+      "joinedAt": "2026-10-02T09:00:00"
+    }
+  ]
+}
+```
+
+### 멤버 추가
+
+```http
+POST /api/organizations/{organizationId}/members
+```
+
+Request:
+
+```json
+{
+  "email": "member@example.com",
+  "role": "MEMBER"
+}
+```
+
+권한 및 동작:
+
+- 가입된 사용자를 이메일로 조회해 조직에 추가한다.
+- OWNER는 모든 역할을 지정할 수 있다.
+- ADMIN은 MANAGER 또는 MEMBER 역할만 지정할 수 있다.
+- 미가입 이메일은 `404 USER_NOT_FOUND`, 이미 소속된 사용자는 `409 ORGANIZATION_MEMBER_DUPLICATED`를 반환한다.
+
 ### 멤버 역할 변경
 
 ```http
@@ -262,6 +301,12 @@ Request:
 - OWNER
 - ADMIN
 
+동작:
+
+- OWNER는 모든 멤버의 역할을 변경할 수 있다.
+- ADMIN은 MANAGER와 MEMBER만 서로 변경할 수 있다.
+- 조직에는 OWNER가 최소 한 명 남아 있어야 한다.
+
 ### 멤버 제거
 
 ```http
@@ -272,6 +317,12 @@ DELETE /api/organizations/{organizationId}/members/{memberId}
 
 - OWNER
 - ADMIN
+
+동작:
+
+- ADMIN은 MANAGER와 MEMBER만 제거할 수 있다.
+- 마지막 OWNER는 제거할 수 없다.
+- URL의 조직에 속하지 않은 memberId는 `404 ORGANIZATION_MEMBER_NOT_FOUND`를 반환한다.
 
 ## 5. Asset API
 
@@ -593,8 +644,11 @@ AUTH_INVALID_CREDENTIALS
 AUTH_UNAUTHORIZED
 AUTH_FORBIDDEN
 USER_EMAIL_DUPLICATED
+USER_NOT_FOUND
 ORGANIZATION_NOT_FOUND
 ORGANIZATION_MEMBER_NOT_FOUND
+ORGANIZATION_MEMBER_DUPLICATED
+ORGANIZATION_LAST_OWNER_REQUIRED
 ASSET_NOT_FOUND
 ASSET_CODE_DUPLICATED
 CATEGORY_NOT_FOUND
