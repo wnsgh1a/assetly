@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Boxes, LogOut, Settings, Users } from "lucide-react";
+import { Boxes, LogOut, MapPinned, Settings, Users } from "lucide-react";
 import { ApiError, apiRequest, clearAccessToken } from "@/lib/api";
 import type { Organization } from "@/lib/types";
 
@@ -18,6 +18,7 @@ type WorkspaceShellProps = {
 
 const navigation = [
   { href: "/app", label: "대시보드", icon: Boxes, restricted: false },
+  { href: "/app/classification", label: "위치·카테고리", icon: MapPinned, restricted: false },
   { href: "/app/members", label: "멤버", icon: Users, restricted: true },
   { href: "/app/settings", label: "조직 설정", icon: Settings, restricted: false },
 ] as const;
@@ -88,13 +89,13 @@ export function WorkspaceShell({ eyebrow, title, children }: WorkspaceShellProps
           {navigation
             .filter((item) => !item.restricted || ["OWNER", "ADMIN"].includes(organization.myRole))
             .map(({ href, label, icon: Icon }) => {
-            const active = pathname === href;
-            return (
-              <Link className={`flex shrink-0 items-center gap-3 px-3 py-2.5 text-sm transition-colors md:w-full ${active ? "bg-white/10 font-medium text-white" : "text-white/55 hover:bg-white/5 hover:text-white"}`} href={href} key={href}>
-                <Icon size={17} />
-                {label}
-              </Link>
-            );
+              const active = pathname === href;
+              return (
+                <Link className={`flex shrink-0 items-center gap-3 px-3 py-2.5 text-sm transition-colors md:w-full ${active ? "bg-white/10 font-medium text-white" : "text-white/55 hover:bg-white/5 hover:text-white"}`} href={href} key={href}>
+                  <Icon size={17} />
+                  {label}
+                </Link>
+              );
             })}
         </nav>
         <button className="m-3 mt-0 flex items-center gap-3 px-3 py-2.5 text-sm text-white/55 transition-colors hover:text-white md:absolute md:bottom-3 md:left-0 md:w-[192px]" onClick={() => { clearAccessToken(); router.replace("/login"); }} type="button">
