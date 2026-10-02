@@ -325,9 +325,10 @@ AST-9X7K2Q
 
 - 컬럼이 하나 더 필요하다.
 
-권장 선택은 B다.
+선택지는 B로 확정했다.
 
-따라서 실제 구현 시 `assets.public_code`를 추가하는 것을 추천한다.
+현재 구현은 `assets.public_code`를 전역 고유값으로 저장하며, QR 화면 경로는
+`/a/{publicCode}`, 조회 API는 `/api/assets/public/{publicCode}`를 사용한다.
 
 ## 8. 수정된 assets 권장 컬럼
 

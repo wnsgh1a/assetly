@@ -1,5 +1,6 @@
 package com.assetly.location;
 
+import com.assetly.asset.AssetRepository;
 import com.assetly.common.BusinessException;
 import com.assetly.location.dto.LocationRequest;
 import com.assetly.location.dto.LocationResponse;
@@ -15,13 +16,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class LocationService {
 
     private final LocationRepository locationRepository;
+    private final AssetRepository assetRepository;
     private final OrganizationAccessService organizationAccessService;
 
     public LocationService(
             LocationRepository locationRepository,
+            AssetRepository assetRepository,
             OrganizationAccessService organizationAccessService
     ) {
         this.locationRepository = locationRepository;
+        this.assetRepository = assetRepository;
         this.organizationAccessService = organizationAccessService;
     }
 
@@ -55,7 +59,15 @@ public class LocationService {
     @Transactional
     public void delete(Long userId, Long organizationId, Long locationId) {
         requireManager(organizationId, userId);
-        locationRepository.delete(findLocation(organizationId, locationId));
+        Location location = findLocation(organizationId, locationId);
+        if (assetRepository.existsByOrganizationIdAndLocationIdAndDeletedAtIsNull(organizationId, locationId)) {
+            throw new BusinessException(
+                    "LOCATION_IN_USE",
+                    "사용 중인 위치는 삭제할 수 없습니다.",
+                    HttpStatus.CONFLICT
+            );
+        }
+        locationRepository.delete(location);
     }
 
     private OrganizationMember requireManager(Long organizationId, Long userId) {

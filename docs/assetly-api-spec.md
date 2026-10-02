@@ -388,6 +388,20 @@ size
 
 - 조직 멤버
 
+Response:
+
+```json
+{
+  "data": {
+    "items": [],
+    "page": 0,
+    "size": 20,
+    "totalElements": 0,
+    "totalPages": 0
+  }
+}
+```
+
 ### 자산 상세
 
 ```http
@@ -397,6 +411,23 @@ GET /api/organizations/{organizationId}/assets/{assetId}
 권한:
 
 - 조직 멤버
+
+상세 응답에는 `publicCode`, 카테고리, 위치, 담당자, 구매 정보와 생성·수정 시간이 포함된다.
+
+### 담당자 후보 목록
+
+```http
+GET /api/organizations/{organizationId}/assignees
+```
+
+권한:
+
+- 조직 멤버
+
+동작:
+
+- 자산 담당자 선택에 필요한 `userId`, 이름, 이메일만 반환한다.
+- 멤버 역할 관리 권한과는 분리한다.
 
 ### QR 공개 코드로 자산 조회
 
@@ -426,6 +457,7 @@ Request:
 
 ```json
 {
+  "assetCode": "IT-2026-00132",
   "name": "MacBook Pro 14",
   "description": "개발팀 노트북",
   "categoryId": 1,
@@ -437,7 +469,11 @@ Request:
 }
 ```
 
-수정 시 변경 이력을 생성한다.
+변경 이력 단계가 구현되면 수정 내역 저장을 이 API에 연결한다.
+
+- OWNER와 ADMIN은 전체 필드를 수정할 수 있다.
+- MANAGER는 상태, 위치, 담당자만 수정할 수 있다.
+- MEMBER의 수정 요청은 `403 AUTH_FORBIDDEN`을 반환한다.
 
 ### 자산 삭제
 
@@ -452,8 +488,9 @@ DELETE /api/organizations/{organizationId}/assets/{assetId}
 
 동작:
 
-- soft delete 권장
-- 삭제 이력 생성
+- `deleted_at`을 기록해 비활성화하고 일반 목록과 상세 조회에서 제외한다.
+- 삭제 이력 생성은 변경 이력 단계에서 연결한다.
+- 조직 밖의 자산 ID는 `404 ASSET_NOT_FOUND`를 반환한다.
 
 ## 6. Asset History API
 
@@ -678,8 +715,7 @@ Response:
     "inUseAssets": 64,
     "repairAssets": 9,
     "lostAssets": 3,
-    "recentAssets": [],
-    "recentHistories": []
+    "recentAssets": []
   }
 }
 ```
@@ -713,7 +749,9 @@ ASSET_NOT_FOUND
 ASSET_CODE_DUPLICATED
 CATEGORY_NOT_FOUND
 CATEGORY_NAME_DUPLICATED
+CATEGORY_IN_USE
 LOCATION_NOT_FOUND
 LOCATION_NAME_DUPLICATED
+LOCATION_IN_USE
 VALIDATION_ERROR
 ```
