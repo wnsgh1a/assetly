@@ -6,7 +6,7 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, ScanLine } from "lucide-react";
 import { AssetForm, statusLabels } from "@/components/asset-form";
 import { HistoryList } from "@/components/history-list";
-import { ApiError, apiRequest, clearAccessToken } from "@/lib/api";
+import { ApiError, apiRequest, clearAccessToken, saveSelectedOrganizationId } from "@/lib/api";
 import type { AssetHistoryPage, Organization, PublicAsset } from "@/lib/types";
 
 export default function PublicAssetPage() {
@@ -21,7 +21,10 @@ export default function PublicAssetPage() {
 
   useEffect(() => {
     apiRequest<PublicAsset>(`/assets/public/${encodeURIComponent(params.publicCode)}`)
-      .then(setResult)
+      .then((asset) => {
+        saveSelectedOrganizationId(asset.organizationId);
+        setResult(asset);
+      })
       .catch((caught) => {
         if (caught instanceof ApiError && caught.status === 401) {
           clearAccessToken();

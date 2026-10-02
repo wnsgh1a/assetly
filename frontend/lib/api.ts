@@ -24,4 +24,18 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 }
 
 export const saveAccessToken = (token: string) => localStorage.setItem("assetly_token", token);
-export const clearAccessToken = () => localStorage.removeItem("assetly_token");
+export const clearAccessToken = () => {
+  localStorage.removeItem("assetly_token");
+  localStorage.removeItem("assetly_organization_id");
+};
+
+export function getSelectedOrganizationId(): number | null {
+  const value = localStorage.getItem("assetly_organization_id");
+  if (!value) return null;
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+export const saveSelectedOrganizationId = (id: number) => {
+  localStorage.setItem("assetly_organization_id", String(id));
+};

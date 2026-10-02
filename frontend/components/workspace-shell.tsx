@@ -3,8 +3,14 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Boxes, History, LogOut, MapPinned, Package, Settings, Users } from "lucide-react";
-import { ApiError, apiRequest, clearAccessToken } from "@/lib/api";
+import { Boxes, History, LogOut, MapPinned, Package, Plus, Settings, Users } from "lucide-react";
+import {
+  ApiError,
+  apiRequest,
+  clearAccessToken,
+  getSelectedOrganizationId,
+  saveSelectedOrganizationId,
+} from "@/lib/api";
 import type { Organization } from "@/lib/types";
 
 type WorkspaceShellProps = {
@@ -28,6 +34,7 @@ const navigation = [
 export function WorkspaceShell({ eyebrow, title, children }: WorkspaceShellProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [organization, setOrganization] = useState<Organization>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -38,7 +45,11 @@ export function WorkspaceShell({ eyebrow, title, children }: WorkspaceShellProps
     apiRequest<Organization[]>("/organizations")
       .then((items) => {
         if (!items.length) return router.replace("/onboarding/organization");
-        setOrganization(items[0]);
+        const selectedId = getSelectedOrganizationId();
+        const selected = items.find((item) => item.id === selectedId) ?? items[0];
+        setOrganizations(items);
+        setOrganization(selected);
+        saveSelectedOrganizationId(selected.id);
       })
       .catch((caught) => {
         if (caught instanceof ApiError && caught.status === 401) {
@@ -53,6 +64,31 @@ export function WorkspaceShell({ eyebrow, title, children }: WorkspaceShellProps
   useEffect(() => {
     loadOrganization();
   }, [loadOrganization]);
+
+  function changeOrganization(value: string) {
+    if (value === "new") {
+      router.push("/onboarding/organization");
+      return;
+    }
+
+    const selected = organizations.find((item) => item.id === Number(value));
+    if (!selected) return;
+    saveSelectedOrganizationId(selected.id);
+    setOrganization(selected);
+    if (pathname.startsWith("/app/members") && !["OWNER", "ADMIN"].includes(selected.myRole)) {
+      router.push("/app");
+    }
+  }
+
+  function updateOrganization(updated: Organization) {
+    setOrganization(updated);
+    setOrganizations((items) => items.map((item) => item.id === updated.id ? updated : item));
+  }
+
+  function logout() {
+    clearAccessToken();
+    router.replace("/login");
+  }
 
   if (loading) {
     return (
@@ -80,27 +116,38 @@ export function WorkspaceShell({ eyebrow, title, children }: WorkspaceShellProps
   return (
     <main className="min-h-screen bg-panel md:grid md:grid-cols-[216px_1fr]">
       <aside className="relative border-b border-line bg-[#202622] text-white md:min-h-screen md:border-b-0 md:border-r md:border-r-black/20">
-        <div className="flex h-16 items-center border-b border-white/10 px-5">
+        <div className="flex h-14 items-center justify-between border-b border-white/10 px-5 md:h-16">
           <p className="text-lg font-semibold">Assetly<span className="text-[#e68a45]">.</span></p>
+          <button aria-label="로그아웃" className="grid h-9 w-9 place-items-center text-white/55 hover:text-white md:hidden" onClick={logout} title="로그아웃" type="button">
+            <LogOut size={18} />
+          </button>
         </div>
-        <div className="border-b border-white/10 px-5 py-4">
-          <span className="block truncate text-sm font-medium">{organization.name}</span>
-          <span className="mt-0.5 block text-[11px] text-white/50">{organization.myRole}</span>
+        <div className="border-b border-white/10 px-3 py-3 md:px-5 md:py-4">
+          <label className="sr-only" htmlFor="organization-switcher">조직 선택</label>
+          <select
+            className="h-9 w-full border border-white/15 bg-[#202622] px-2 text-sm font-medium text-white outline-none focus:border-white/40"
+            id="organization-switcher"
+            onChange={(event) => changeOrganization(event.target.value)}
+            value={organization.id}
+          >
+            {organizations.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.myRole}</option>)}
+            <option value="new">+ 새 조직 만들기</option>
+          </select>
         </div>
-        <nav className="flex gap-1 overflow-x-auto p-3 md:block md:space-y-1 md:overflow-visible">
+        <nav className="flex gap-1 overflow-x-auto px-3 py-2 md:block md:space-y-1 md:overflow-visible md:p-3">
           {navigation
             .filter((item) => !item.restricted || ["OWNER", "ADMIN"].includes(organization.myRole))
             .map(({ href, label, icon: Icon }) => {
               const active = href === "/app" ? pathname === href : pathname.startsWith(href);
               return (
-                <Link className={`flex shrink-0 items-center gap-3 px-3 py-2.5 text-sm transition-colors md:w-full ${active ? "bg-white/10 font-medium text-white" : "text-white/55 hover:bg-white/5 hover:text-white"}`} href={href} key={href}>
+                <Link className={`flex shrink-0 items-center gap-2 px-3 py-2 text-xs transition-colors md:w-full md:gap-3 md:py-2.5 md:text-sm ${active ? "bg-white/10 font-medium text-white" : "text-white/55 hover:bg-white/5 hover:text-white"}`} href={href} key={href}>
                   <Icon size={17} />
                   {label}
                 </Link>
               );
             })}
         </nav>
-        <button className="m-3 mt-0 flex items-center gap-3 px-3 py-2.5 text-sm text-white/55 transition-colors hover:text-white md:absolute md:bottom-3 md:left-0 md:w-[192px]" onClick={() => { clearAccessToken(); router.replace("/login"); }} type="button">
+        <button className="m-3 mt-0 hidden items-center gap-3 px-3 py-2.5 text-sm text-white/55 transition-colors hover:text-white md:absolute md:bottom-3 md:left-0 md:flex md:w-[192px]" onClick={logout} type="button">
           <LogOut size={17} />
           로그아웃
         </button>
@@ -112,11 +159,9 @@ export function WorkspaceShell({ eyebrow, title, children }: WorkspaceShellProps
             <p className="text-xs font-medium text-muted">{eyebrow}</p>
             <h1 className="mt-0.5 text-base font-semibold">{title}</h1>
           </div>
-          <div className="grid h-9 w-9 place-items-center bg-[#dce9df] text-xs font-semibold text-[#24573d]" title={organization.myRole}>
-            {organization.name.slice(0, 1)}
-          </div>
+          <button aria-label="새 조직 만들기" className="grid h-9 w-9 place-items-center border border-line text-muted hover:bg-panel hover:text-ink" onClick={() => router.push("/onboarding/organization")} title="새 조직 만들기" type="button"><Plus size={17} /></button>
         </header>
-        {children(organization, setOrganization)}
+        {children(organization, updateOrganization)}
       </div>
     </main>
   );
