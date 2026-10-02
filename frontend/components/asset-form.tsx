@@ -79,6 +79,15 @@ export function AssetForm({ organization, asset, onSaved }: AssetFormProps) {
         creating ? `/organizations/${organization.id}/assets` : `/organizations/${organization.id}/assets/${asset.id}`,
         { method: creating ? "POST" : "PATCH", body: JSON.stringify(body) },
       );
+      setAssetCode(saved.assetCode);
+      setName(saved.name);
+      setDescription(saved.description ?? "");
+      setStatus(saved.status);
+      setCategoryId(saved.category?.id.toString() ?? "");
+      setLocationId(saved.location?.id.toString() ?? "");
+      setAssignedUserId(saved.assignedUser?.id.toString() ?? "");
+      setPurchaseDate(saved.purchaseDate ?? "");
+      setPurchasePrice(saved.purchasePrice?.toString() ?? "");
       setNotice(creating ? "자산을 등록했습니다." : "자산 정보를 저장했습니다.");
       onSaved(saved);
     } catch (caught) {
