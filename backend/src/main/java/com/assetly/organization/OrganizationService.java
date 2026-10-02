@@ -3,6 +3,7 @@ package com.assetly.organization;
 import com.assetly.common.BusinessException;
 import com.assetly.organization.dto.CreateOrganizationRequest;
 import com.assetly.organization.dto.OrganizationResponse;
+import com.assetly.organization.dto.UpdateOrganizationRequest;
 import com.assetly.user.User;
 import com.assetly.user.UserRepository;
 import java.util.List;
@@ -15,15 +16,18 @@ public class OrganizationService {
     private final OrganizationRepository organizationRepository;
     private final OrganizationMemberRepository organizationMemberRepository;
     private final UserRepository userRepository;
+    private final OrganizationAccessService organizationAccessService;
 
     public OrganizationService(
             OrganizationRepository organizationRepository,
             OrganizationMemberRepository organizationMemberRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            OrganizationAccessService organizationAccessService
     ) {
         this.organizationRepository = organizationRepository;
         this.organizationMemberRepository = organizationMemberRepository;
         this.userRepository = userRepository;
+        this.organizationAccessService = organizationAccessService;
     }
 
     @Transactional
@@ -47,5 +51,21 @@ public class OrganizationService {
         return organizationMemberRepository.findAllByUserId(userId).stream()
                 .map(OrganizationResponse::from)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public OrganizationResponse findOne(Long userId, Long organizationId) {
+        return OrganizationResponse.from(organizationAccessService.requireMember(organizationId, userId));
+    }
+
+    @Transactional
+    public OrganizationResponse update(Long userId, Long organizationId, UpdateOrganizationRequest request) {
+        OrganizationMember member = organizationAccessService.requireRole(
+                organizationId,
+                userId,
+                MemberRole.OWNER
+        );
+        member.getOrganization().update(request.name(), request.description());
+        return OrganizationResponse.from(member);
     }
 }

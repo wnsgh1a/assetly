@@ -22,7 +22,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusiness(BusinessException exception) {
-        return ResponseEntity.badRequest()
+        return ResponseEntity.status(exception.getStatus())
                 .body(ErrorResponse.of(exception.getCode(), exception.getMessage()));
     }
 

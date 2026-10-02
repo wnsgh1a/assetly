@@ -113,6 +113,37 @@
 - 기대: 첫 사용자의 조직이 노출되지 않음
 - 자동화: `CurrentFeatureFunctionalTests.isolateOrganizationsByUser`
 
+#### FT-ORG-005 조직 상세 조회
+
+- 선행 조건: 조직 멤버
+- 실행: `GET /api/organizations/{organizationId}`
+- 기대: `200`, 조직 정보와 요청 사용자의 역할 반환
+- 자동화: `OrganizationAccessFunctionalTests.memberFindsOrganization`
+
+#### FT-ORG-006 다른 조직 상세 접근 차단
+
+- 선행 조건: 요청 사용자가 대상 조직의 멤버가 아님
+- 기대: `404`, `ORGANIZATION_NOT_FOUND`, 조직 정보 미노출
+- 자동화: `OrganizationAccessFunctionalTests.nonMemberCannotFindOrganization`
+
+#### FT-ORG-007 Owner의 조직 수정
+
+- 실행: Owner가 조직 이름과 설명 수정
+- 기대: `200`, 수정 결과 저장 및 상세 조회에 반영
+- 자동화: `OrganizationAccessFunctionalTests.ownerUpdatesOrganization`
+
+#### FT-ORG-008 Member의 조직 수정 차단
+
+- 실행: Member가 조직 정보 수정
+- 기대: `403`, `AUTH_FORBIDDEN`
+- 자동화: `OrganizationAccessFunctionalTests.memberCannotUpdateOrganization`
+
+#### FT-ORG-009 조직 수정 입력 검증
+
+- 입력: 빈 조직 이름
+- 기대: `400`, `VALIDATION_ERROR`
+- 자동화: `OrganizationAccessFunctionalTests.validateOrganizationUpdate`
+
 ## 5. 현재 프런트엔드 수동 시나리오
 
 ### FT-WEB-001 회원가입 화면
@@ -144,6 +175,12 @@
 - 신규 조직의 대시보드 수치는 모두 `0`이다.
 - 최근 변경 내역이 없으면 빈 상태 문구를 표시한다.
 - 특정 조직, 장비, 담당자 이름을 실제 데이터처럼 하드코딩하지 않는다.
+
+### FT-WEB-006 조직 설정
+
+- 실제 조직 이름과 설명을 입력값으로 표시한다.
+- Owner는 수정 후 성공 메시지와 갱신된 조직명을 확인한다.
+- Owner가 아닌 멤버는 읽기 전용 화면을 보고 저장 버튼이 표시되지 않는다.
 
 ## 6. 핵심 사용자 흐름
 
@@ -242,6 +279,13 @@ npm run build
 - 백엔드 결과: 총 13개 통과, 실패 0, 오류 0, 건너뜀 0
 - 확인 사항: H2 PostgreSQL 호환 모드에서 V1 적용 후 Hibernate `validate` 성공
 - 미확인 사항: 개발 PC에 Docker가 없어 실제 PostgreSQL 16 컨테이너 실행은 검증하지 못함
+
+### 2026-10-02 조직 접근 권한과 설정
+
+- 대상: 조직 상세, Owner 수정, 비멤버 데이터 격리, Member 수정 차단, 조직 설정 화면
+- 백엔드 결과: 총 18개 통과, 실패 0, 오류 0, 건너뜀 0
+- 프런트엔드 결과: `/app/settings` 포함 production build 및 TypeScript 검사 통과
+- 권한 결과: 비멤버 `404`, 권한 부족 `403`, Owner 수정 `200`
 
 ### 2026-10-01 초기 기능 테스트 구축
 

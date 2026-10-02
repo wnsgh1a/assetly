@@ -1,15 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import {
-  Boxes,
-  History,
-  LogOut,
-  PackageSearch,
-} from "lucide-react";
-import { ApiError, apiRequest, clearAccessToken } from "@/lib/api";
-import type { Organization } from "@/lib/types";
+import { History, PackageSearch } from "lucide-react";
+import { WorkspaceShell } from "@/components/workspace-shell";
 
 const metrics = [
   ["전체 자산", "0"],
@@ -19,74 +11,9 @@ const metrics = [
 ] as const;
 
 export default function AppPage() {
-  const router = useRouter();
-  const [organization, setOrganization] = useState<Organization>();
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    apiRequest<Organization[]>("/organizations")
-      .then((items) => {
-        if (!items.length) return router.replace("/onboarding/organization");
-        setOrganization(items[0]);
-      })
-      .catch((error) => {
-        if (error instanceof ApiError && error.status === 401) {
-          clearAccessToken();
-          router.replace("/login?next=/app");
-        }
-      })
-      .finally(() => setLoading(false));
-  }, [router]);
-
-  if (loading) {
-    return (
-      <main className="grid min-h-screen place-items-center bg-panel">
-        <div className="flex items-center gap-3 text-sm text-muted">
-          <span className="h-2 w-2 animate-pulse bg-brand" />
-          워크스페이스 불러오는 중
-        </div>
-      </main>
-    );
-  }
-  if (!organization) return null;
-
   return (
-    <main className="min-h-screen bg-panel md:grid md:grid-cols-[216px_1fr]">
-      <aside className="relative border-b border-line bg-[#202622] text-white md:min-h-screen md:border-b-0 md:border-r md:border-r-black/20">
-        <div className="flex h-16 items-center justify-between border-b border-white/10 px-5">
-          <p className="text-lg font-semibold">Assetly<span className="text-[#e68a45]">.</span></p>
-        </div>
-        <div className="border-b border-white/10 px-5 py-4">
-          <div className="flex w-full items-center justify-between gap-3 text-left">
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-medium">{organization.name}</span>
-              <span className="mt-0.5 block text-[11px] text-white/50">{organization.myRole}</span>
-            </span>
-          </div>
-        </div>
-        <nav className="p-3">
-          <div className="flex items-center gap-3 bg-white/10 px-3 py-2.5 text-sm font-medium text-white">
-            <Boxes size={17} />
-            대시보드
-          </div>
-        </nav>
-        <button className="m-3 mt-0 flex items-center gap-3 px-3 py-2.5 text-sm text-white/55 transition-colors hover:text-white md:absolute md:bottom-3 md:left-0 md:w-[192px]" onClick={() => { clearAccessToken(); router.replace("/login"); }} type="button">
-          <LogOut size={17} />
-          로그아웃
-        </button>
-      </aside>
-
-      <div className="min-w-0">
-        <header className="flex h-16 items-center justify-between border-b border-line bg-white px-5 md:px-8">
-          <div>
-            <p className="text-xs font-medium text-muted">WORKSPACE</p>
-            <h1 className="mt-0.5 text-base font-semibold">대시보드</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="grid h-9 w-9 place-items-center bg-[#dce9df] text-xs font-semibold text-[#24573d]" title={organization.myRole}>{organization.name.slice(0, 1)}</div>
-          </div>
-        </header>
-
+    <WorkspaceShell eyebrow="WORKSPACE" title="대시보드">
+      {(organization) => (
         <section className="px-5 py-7 md:px-8 md:py-8">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -142,7 +69,7 @@ export default function AppPage() {
             </section>
           </div>
         </section>
-      </div>
-    </main>
+      )}
+    </WorkspaceShell>
   );
 }

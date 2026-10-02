@@ -34,6 +34,11 @@ public class Organization extends BaseTimeEntity {
         return new Organization(name, description);
     }
 
+    public void update(String name, String description) {
+        this.name = name;
+        this.description = description;
+    }
+
     public Long getId() {
         return id;
     }
