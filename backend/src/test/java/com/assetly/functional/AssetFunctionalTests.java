@@ -2,6 +2,7 @@ package com.assetly.functional;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,9 @@ class AssetFunctionalTests {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @Test
     @DisplayName("FT-ASSET-001 필수 정보와 참조 정보로 자산을 등록하고 publicCode를 발급한다")
@@ -266,7 +270,26 @@ class AssetFunctionalTests {
                 .andExpect(jsonPath("$.data.totalAssets").value(2))
                 .andExpect(jsonPath("$.data.inUseAssets").value(1))
                 .andExpect(jsonPath("$.data.repairAssets").value(1))
-                .andExpect(jsonPath("$.data.recentAssets.length()").value(2));
+                .andExpect(jsonPath("$.data.recentAssets.length()").value(2))
+                .andExpect(jsonPath("$.data.recentHistories.length()").value(2))
+                .andExpect(jsonPath("$.data.recentHistories[0].actionType").value("CREATED"));
+    }
+
+    @Test
+    @DisplayName("FT-DASH-002 대시보드 최근 활동에 최신 자산 변경 이력을 반환한다")
+    void dashboardUsesLatestHistoryData() throws Exception {
+        Workspace workspace = workspace("dashboard-history");
+        long assetId = createAssetId(workspace, "DASH-HISTORY-001", "활동 자산");
+        updateAsset(workspace.owner().token(), workspace.organizationId(), assetId, assetBody(
+                "DASH-HISTORY-001", "활동 자산", workspace.categoryId(), workspace.locationId(), null, "LOST"
+        )).andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/organizations/{organizationId}/dashboard", workspace.organizationId())
+                        .header("Authorization", bearer(workspace.owner().token())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.recentHistories[0].actionType").value("STATUS_CHANGED"))
+                .andExpect(jsonPath("$.data.recentHistories[0].asset.id").value(assetId))
+                .andExpect(jsonPath("$.data.recentHistories[0].afterValue").value("LOST"));
     }
 
     @Test
@@ -282,7 +305,95 @@ class AssetFunctionalTests {
                 .andExpect(jsonPath("$.data.inUseAssets").value(0))
                 .andExpect(jsonPath("$.data.repairAssets").value(0))
                 .andExpect(jsonPath("$.data.lostAssets").value(0))
-                .andExpect(jsonPath("$.data.recentAssets.length()").value(0));
+                .andExpect(jsonPath("$.data.recentAssets.length()").value(0))
+                .andExpect(jsonPath("$.data.recentHistories.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("FT-QR-001 조직 멤버는 publicCode로 자산과 조직 권한을 조회한다")
+    void findsAssetByPublicCode() throws Exception {
+        Workspace workspace = workspace("qr-find");
+        MvcResult created = createAsset(workspace.owner().token(), workspace.organizationId(), assetBody(
+                "QR-001", "QR 노트북", workspace.categoryId(), workspace.locationId(), null, "AVAILABLE"
+        )).andExpect(status().isOk()).andReturn();
+        JsonNode asset = responseData(created);
+
+        mockMvc.perform(get("/api/assets/public/{publicCode}", asset.path("publicCode").asText())
+                        .header("Authorization", bearer(workspace.owner().token())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.organizationId").value(workspace.organizationId()))
+                .andExpect(jsonPath("$.data.myRole").value("OWNER"))
+                .andExpect(jsonPath("$.data.asset.id").value(asset.path("id").asLong()))
+                .andExpect(jsonPath("$.data.asset.assetCode").value("QR-001"));
+    }
+
+    @Test
+    @DisplayName("FT-QR-002 publicCode 조회는 로그인과 조직 멤버십을 요구한다")
+    void protectsPublicCodeLookup() throws Exception {
+        Workspace workspace = workspace("qr-protect");
+        Account outsider = signupAndLogin("qr-outsider@example.com", "외부 사용자");
+        MvcResult created = createAsset(workspace.owner().token(), workspace.organizationId(), assetBody(
+                "QR-002", "보호 자산", workspace.categoryId(), workspace.locationId(), null, "AVAILABLE"
+        )).andExpect(status().isOk()).andReturn();
+        String publicCode = responseData(created).path("publicCode").asText();
+
+        mockMvc.perform(get("/api/assets/public/{publicCode}", publicCode))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("AUTH_UNAUTHORIZED"));
+        mockMvc.perform(get("/api/assets/public/{publicCode}", publicCode)
+                        .header("Authorization", bearer(outsider.token())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("ORGANIZATION_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("FT-HISTORY-001 등록 수정 비활성화 이력을 작업자와 함께 최신순으로 기록한다")
+    void recordsAssetLifecycleHistory() throws Exception {
+        Workspace workspace = workspace("history-lifecycle");
+        long assetId = createAssetId(workspace, "HISTORY-001", "이력 자산");
+        entityManager.flush();
+        entityManager.clear();
+
+        updateAsset(workspace.owner().token(), workspace.organizationId(), assetId, assetBody(
+                "HISTORY-001", "이력 자산", workspace.categoryId(), workspace.locationId(), null, "REPAIR"
+        )).andExpect(status().isOk());
+        mockMvc.perform(delete("/api/organizations/{organizationId}/assets/{assetId}",
+                        workspace.organizationId(), assetId)
+                        .header("Authorization", bearer(workspace.owner().token())))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/organizations/{organizationId}/assets/{assetId}/histories",
+                        workspace.organizationId(), assetId)
+                        .header("Authorization", bearer(workspace.owner().token())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(3))
+                .andExpect(jsonPath("$.data.items[0].actionType").value("DELETED"))
+                .andExpect(jsonPath("$.data.items[1].actionType").value("STATUS_CHANGED"))
+                .andExpect(jsonPath("$.data.items[1].fieldName").value("status"))
+                .andExpect(jsonPath("$.data.items[1].beforeValue").value("AVAILABLE"))
+                .andExpect(jsonPath("$.data.items[1].afterValue").value("REPAIR"))
+                .andExpect(jsonPath("$.data.items[2].actionType").value("CREATED"))
+                .andExpect(jsonPath("$.data.items[0].actor.email").value(workspace.owner().email()));
+    }
+
+    @Test
+    @DisplayName("FT-HISTORY-002 조직 이력은 필터를 지원하고 다른 조직에서 조회할 수 없다")
+    void filtersAndIsolatesOrganizationHistory() throws Exception {
+        Workspace first = workspace("history-first");
+        Workspace second = workspace("history-second");
+        long assetId = createAssetId(first, "FILTER-001", "필터 자산");
+
+        mockMvc.perform(get("/api/organizations/{organizationId}/histories", first.organizationId())
+                        .param("assetId", String.valueOf(assetId))
+                        .param("actionType", "CREATED")
+                        .header("Authorization", bearer(first.owner().token())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.items[0].asset.id").value(assetId));
+        mockMvc.perform(get("/api/organizations/{organizationId}/histories", first.organizationId())
+                        .header("Authorization", bearer(second.owner().token())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("ORGANIZATION_NOT_FOUND"));
     }
 
     private Workspace workspace(String prefix) throws Exception {

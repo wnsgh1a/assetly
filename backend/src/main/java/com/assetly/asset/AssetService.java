@@ -3,11 +3,13 @@ package com.assetly.asset;
 import com.assetly.asset.dto.AssetPageResponse;
 import com.assetly.asset.dto.AssetRequest;
 import com.assetly.asset.dto.AssetResponse;
+import com.assetly.asset.dto.PublicAssetResponse;
 import com.assetly.category.AssetCategory;
 import com.assetly.category.AssetCategoryRepository;
 import com.assetly.common.BusinessException;
 import com.assetly.location.Location;
 import com.assetly.location.LocationRepository;
+import com.assetly.history.AssetHistoryService;
 import com.assetly.organization.MemberRole;
 import com.assetly.organization.OrganizationAccessService;
 import com.assetly.organization.OrganizationMember;
@@ -36,19 +38,22 @@ public class AssetService {
     private final LocationRepository locationRepository;
     private final OrganizationMemberRepository organizationMemberRepository;
     private final OrganizationAccessService organizationAccessService;
+    private final AssetHistoryService assetHistoryService;
 
     public AssetService(
             AssetRepository assetRepository,
             AssetCategoryRepository assetCategoryRepository,
             LocationRepository locationRepository,
             OrganizationMemberRepository organizationMemberRepository,
-            OrganizationAccessService organizationAccessService
+            OrganizationAccessService organizationAccessService,
+            AssetHistoryService assetHistoryService
     ) {
         this.assetRepository = assetRepository;
         this.assetCategoryRepository = assetCategoryRepository;
         this.locationRepository = locationRepository;
         this.organizationMemberRepository = organizationMemberRepository;
         this.organizationAccessService = organizationAccessService;
+        this.assetHistoryService = assetHistoryService;
     }
 
     @Transactional
@@ -71,7 +76,9 @@ public class AssetService {
                 request.purchaseDate(),
                 request.purchasePrice()
         );
-        return AssetResponse.from(assetRepository.save(asset));
+        Asset saved = assetRepository.saveAndFlush(asset);
+        assetHistoryService.recordCreated(saved, actor.getUser());
+        return AssetResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -101,6 +108,14 @@ public class AssetService {
         return AssetResponse.from(findAsset(organizationId, assetId));
     }
 
+    @Transactional(readOnly = true)
+    public PublicAssetResponse findByPublicCode(Long userId, String publicCode) {
+        Asset asset = assetRepository.findByPublicCodeAndDeletedAtIsNull(publicCode)
+                .orElseThrow(() -> new BusinessException("ASSET_NOT_FOUND", "자산을 찾을 수 없습니다.", HttpStatus.NOT_FOUND));
+        OrganizationMember member = organizationAccessService.requireMember(asset.getOrganization().getId(), userId);
+        return PublicAssetResponse.from(asset, member);
+    }
+
     @Transactional
     public AssetResponse update(Long userId, Long organizationId, Long assetId, AssetRequest request) {
         OrganizationMember actor = organizationAccessService.requireRole(
@@ -112,6 +127,15 @@ public class AssetService {
         AssetCategory category = findCategory(organizationId, request.categoryId());
         Location location = findLocation(organizationId, request.locationId());
         User assignedUser = findAssignedUser(organizationId, request.assignedUserId());
+        String beforeAssetCode = asset.getAssetCode();
+        String beforeName = asset.getName();
+        String beforeDescription = asset.getDescription();
+        String beforeCategory = nameOf(asset.getCategory());
+        String beforeLocation = nameOf(asset.getLocation());
+        String beforeAssignee = nameOf(asset.getAssignedUser());
+        AssetStatus beforeStatus = asset.getStatus();
+        Object beforePurchaseDate = asset.getPurchaseDate();
+        Object beforePurchasePrice = asset.getPurchasePrice();
 
         if (actor.getRole() == MemberRole.MANAGER) {
             validateManagerUpdate(asset, request, assetCode, description, category);
@@ -130,13 +154,29 @@ public class AssetService {
                     request.purchasePrice()
             );
         }
+        assetRepository.saveAndFlush(asset);
+        User actorUser = actor.getUser();
+        assetHistoryService.recordChange(asset, actorUser, "assetCode", beforeAssetCode, asset.getAssetCode());
+        assetHistoryService.recordChange(asset, actorUser, "name", beforeName, asset.getName());
+        assetHistoryService.recordChange(asset, actorUser, "description", beforeDescription, asset.getDescription());
+        assetHistoryService.recordChange(asset, actorUser, "category", beforeCategory, nameOf(asset.getCategory()));
+        assetHistoryService.recordChange(asset, actorUser, "location", beforeLocation, nameOf(asset.getLocation()));
+        assetHistoryService.recordChange(asset, actorUser, "assignedUser", beforeAssignee, nameOf(asset.getAssignedUser()));
+        assetHistoryService.recordChange(asset, actorUser, "status", beforeStatus, asset.getStatus());
+        assetHistoryService.recordChange(asset, actorUser, "purchaseDate", beforePurchaseDate, asset.getPurchaseDate());
+        assetHistoryService.recordChange(asset, actorUser, "purchasePrice", beforePurchasePrice, asset.getPurchasePrice());
         return AssetResponse.from(asset);
     }
 
     @Transactional
     public void delete(Long userId, Long organizationId, Long assetId) {
-        organizationAccessService.requireRole(organizationId, userId, MemberRole.OWNER, MemberRole.ADMIN);
-        findAsset(organizationId, assetId).deactivate();
+        OrganizationMember actor = organizationAccessService.requireRole(
+                organizationId, userId, MemberRole.OWNER, MemberRole.ADMIN
+        );
+        Asset asset = findAsset(organizationId, assetId);
+        asset.deactivate();
+        assetRepository.saveAndFlush(asset);
+        assetHistoryService.recordDeleted(asset, actor.getUser());
     }
 
     private Specification<Asset> search(
@@ -240,5 +280,17 @@ public class AssetService {
 
     private String normalizeText(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String nameOf(AssetCategory category) {
+        return category == null ? null : category.getName();
+    }
+
+    private String nameOf(Location location) {
+        return location == null ? null : location.getName();
+    }
+
+    private String nameOf(User user) {
+        return user == null ? null : user.getName() + " (" + user.getEmail() + ")";
     }
 }

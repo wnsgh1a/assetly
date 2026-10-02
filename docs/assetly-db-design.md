@@ -155,7 +155,8 @@ v1.0에서는 핵심 데이터의 물리 삭제를 최소화한다.
 - LOCATION_CHANGED
 - ASSIGNEE_CHANGED
 - DELETED
-- RESTORED
+
+v1.0에서는 생성과 비활성화는 작업 단위로 한 건, 수정은 실제 값이 달라진 필드마다 한 건을 기록한다.
 
 ### refresh_tokens
 
@@ -247,7 +248,6 @@ STATUS_CHANGED
 LOCATION_CHANGED
 ASSIGNEE_CHANGED
 DELETED
-RESTORED
 ```
 
 ## 6. 인덱스 후보

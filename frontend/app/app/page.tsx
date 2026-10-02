@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { History, PackageSearch } from "lucide-react";
+import { PackageSearch } from "lucide-react";
 import { statusLabels } from "@/components/asset-form";
+import { HistoryList } from "@/components/history-list";
 import { WorkspaceShell } from "@/components/workspace-shell";
 import { ApiError, apiRequest } from "@/lib/api";
-import type { Asset, Organization } from "@/lib/types";
+import type { Asset, AssetHistory, Organization } from "@/lib/types";
 
 type Dashboard = {
   totalAssets: number;
@@ -15,6 +16,7 @@ type Dashboard = {
   repairAssets: number;
   lostAssets: number;
   recentAssets: Asset[];
+  recentHistories: AssetHistory[];
 };
 
 const emptyDashboard: Dashboard = {
@@ -24,6 +26,7 @@ const emptyDashboard: Dashboard = {
   repairAssets: 0,
   lostAssets: 0,
   recentAssets: [],
+  recentHistories: [],
 };
 
 function DashboardView({ organization }: { organization: Organization }) {
@@ -79,8 +82,8 @@ function DashboardView({ organization }: { organization: Organization }) {
           </div>
         </section>
         <section>
-          <div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-semibold">최근 활동</h3><History size={16} className="text-muted" /></div>
-          <div className="min-h-[246px] border-t border-line bg-white px-5 py-6"><div className="grid min-h-44 place-items-center text-center"><div><History size={21} className="mx-auto text-muted" /><p className="mt-3 text-sm font-medium">기록된 활동이 없습니다</p><p className="mt-1 text-xs text-muted">변경 이력 기능은 다음 단계에서 연결됩니다.</p></div></div></div>
+          <div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-semibold">최근 활동</h3><Link className="text-xs text-muted hover:text-ink" href="/app/history">전체 보기</Link></div>
+          {loading ? <div className="min-h-[246px] border-t border-line bg-white px-5 py-12 text-center text-sm text-muted">활동을 불러오는 중입니다.</div> : <HistoryList items={dashboard.recentHistories} showAsset />}
         </section>
       </div>
     </section>
