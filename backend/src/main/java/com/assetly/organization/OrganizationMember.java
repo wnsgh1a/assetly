@@ -56,6 +56,10 @@ public class OrganizationMember extends BaseTimeEntity {
         return new OrganizationMember(organization, user, MemberRole.OWNER);
     }
 
+    public static OrganizationMember create(Organization organization, User user, MemberRole role) {
+        return new OrganizationMember(organization, user, role);
+    }
+
     public Long getId() {
         return id;
     }

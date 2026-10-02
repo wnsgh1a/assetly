@@ -189,6 +189,23 @@ Response:
 GET /api/organizations/{organizationId}
 ```
 
+권한:
+
+- 조직 멤버
+
+Response:
+
+```json
+{
+  "data": {
+    "id": 1,
+    "name": "대덕 연구소",
+    "description": "연구실 장비 관리",
+    "myRole": "OWNER"
+  }
+}
+```
+
 ### 조직 수정
 
 ```http
@@ -198,6 +215,20 @@ PATCH /api/organizations/{organizationId}
 권한:
 
 - OWNER
+
+Request:
+
+```json
+{
+  "name": "대덕 연구소",
+  "description": "연구실 장비와 비품 관리"
+}
+```
+
+동작:
+
+- 비멤버 요청은 조직 존재 여부를 노출하지 않고 `404 ORGANIZATION_NOT_FOUND`를 반환한다.
+- 조직 멤버이지만 Owner가 아니면 `403 AUTH_FORBIDDEN`을 반환한다.
 
 ## 4. Member API
 
