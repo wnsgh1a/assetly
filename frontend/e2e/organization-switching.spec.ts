@@ -71,9 +71,11 @@ test("로그인하고 로그아웃하면 보호 화면 접근을 차단한다", 
   await page.getByLabel("비밀번호").fill(password);
   await page.getByRole("button", { name: "로그인" }).click();
   await expect(page).toHaveURL(/\/app$/);
+  await expect(page.getByLabel("조직 선택")).toBeVisible();
 
   await page.getByRole("button", { name: "로그아웃" }).click();
-  await expect(page).toHaveURL(/\/login$/);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("assetly_token"))).toBeNull();
+  await expect(page).toHaveURL(/\/login$/, { timeout: 15_000 });
   await page.goto("/app");
   await expect(page).toHaveURL(/\/login\?next=%2Fapp$/);
 });

@@ -449,11 +449,13 @@ Phase 1 프로젝트 뼈대부터 Phase 4 QR 현장 접근과 변경 이력을 �
 - Maven Wrapper
 - H2 기반 백엔드 테스트 환경
 - Playwright 기반 데스크톱·모바일 브라우저 테스트
+- 비로그인 QR 접근 후 로그인과 원래 자산 화면 복귀 자동 검증
+- 모바일 QR 화면의 상태·위치·담당자 변경과 감사 이력 자동 검증
 
 검증 결과:
 
 - `frontend`에서 `npm run build` 성공
-- `frontend`에서 `npm run test:e2e` 성공: 4개 통과, 2개 프로젝트 조건부 건너뜀
+- `frontend`에서 `npm run test:e2e` 성공: 6개 통과, 4개 프로젝트 조건부 건너뜀
 - `backend`에서 `.\mvnw.cmd test` 성공: 총 54개 테스트 통과
 - Flyway `V1`~`V4` 마이그레이션 적용과 Hibernate 스키마 검증 성공
 - 상세 기능 테스트 기준과 실행 기록은 `docs/assetly-functional-test-spec.md` 참고
@@ -505,7 +507,7 @@ npm run test:e2e
 
 다음 단계는 Phase 5~7의 제품 마감과 배포 준비입니다.
 
-1. QR 진입과 자산 수정 핵심 브라우저 흐름 자동화
-2. 운영용 Dockerfile과 환경변수 검증
-3. GitHub Actions 테스트·빌드 자동화
+1. 운영용 Dockerfile과 환경변수 검증
+2. GitHub Actions 테스트·빌드 자동화
+3. 회원가입부터 첫 조직 생성까지 브라우저 자동화
 4. PostgreSQL 운영 구성과 실제 배포

@@ -66,7 +66,7 @@ function AssetDetail({ organization, assetId }: { organization: Organization; as
         </div>
         {error ? <p className="mb-5 border-l-2 border-red-600 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p> : null}
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
-          <AssetForm asset={asset} key={asset.updatedAt} onSaved={(saved) => { setAsset(saved); setHistoryVersion((value) => value + 1); }} organization={organization} />
+          <AssetForm asset={asset} onSaved={(saved) => { setAsset(saved); setHistoryVersion((value) => value + 1); }} organization={organization} />
           <AssetQr assetCode={asset.assetCode} publicCode={asset.publicCode} />
         </div>
         <section className="mt-10">

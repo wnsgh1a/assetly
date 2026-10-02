@@ -69,7 +69,7 @@ export default function PublicAssetPage() {
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted"><span>{asset.assetCode}</span><span>{statusLabels[asset.status]}</span><span>{asset.location?.name ?? "위치 미지정"}</span></div>
         </div>
         <section className="mt-7 bg-white p-5 sm:p-6">
-          <AssetForm asset={asset} key={asset.updatedAt} onSaved={(saved) => { setResult((current) => current ? { ...current, asset: saved } : current); setHistoryVersion((value) => value + 1); }} organization={organization} />
+          <AssetForm asset={asset} onSaved={(saved) => { setResult((current) => current ? { ...current, asset: saved } : current); setHistoryVersion((value) => value + 1); }} organization={organization} />
         </section>
         <section className="mt-8">
           <h2 className="mb-3 text-sm font-semibold">최근 변경 이력</h2>
