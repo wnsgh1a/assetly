@@ -16,6 +16,17 @@ export type OrganizationMember = {
   joinedAt: string;
 };
 
+export type AssetCategory = {
+  id: number;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AssetLocation = AssetCategory & {
+  description: string | null;
+};
+
 export type LoginResponse = {
   accessToken: string;
   user: { id: number; email: string; name: string };

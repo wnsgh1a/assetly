@@ -520,6 +520,21 @@ GET /api/organizations/{organizationId}/categories
 
 - 조직 멤버
 
+Response:
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "노트북",
+      "createdAt": "2026-10-02T01:00:00Z",
+      "updatedAt": "2026-10-02T01:00:00Z"
+    }
+  ]
+}
+```
+
 ### 카테고리 수정
 
 ```http
@@ -531,6 +546,14 @@ PATCH /api/organizations/{organizationId}/categories/{categoryId}
 - OWNER
 - ADMIN
 
+Request:
+
+```json
+{
+  "name": "휴대용 컴퓨터"
+}
+```
+
 ### 카테고리 삭제
 
 ```http
@@ -541,6 +564,12 @@ DELETE /api/organizations/{organizationId}/categories/{categoryId}
 
 - OWNER
 - ADMIN
+
+동작:
+
+- 같은 조직의 이름 중복은 `409 CATEGORY_NAME_DUPLICATED`를 반환한다.
+- 다른 조직의 categoryId는 `404 CATEGORY_NOT_FOUND`를 반환한다.
+- 자산 연결 후에는 사용 중인 카테고리 삭제를 차단한다.
 
 ## 8. Location API
 
@@ -574,6 +603,22 @@ GET /api/organizations/{organizationId}/locations
 
 - 조직 멤버
 
+Response:
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "개발팀 사무실",
+      "description": "본관 3층",
+      "createdAt": "2026-10-02T01:00:00Z",
+      "updatedAt": "2026-10-02T01:00:00Z"
+    }
+  ]
+}
+```
+
 ### 위치 수정
 
 ```http
@@ -585,6 +630,15 @@ PATCH /api/organizations/{organizationId}/locations/{locationId}
 - OWNER
 - ADMIN
 
+Request:
+
+```json
+{
+  "name": "개발팀 좌석",
+  "description": "별관 2층"
+}
+```
+
 ### 위치 삭제
 
 ```http
@@ -595,6 +649,12 @@ DELETE /api/organizations/{organizationId}/locations/{locationId}
 
 - OWNER
 - ADMIN
+
+동작:
+
+- 같은 조직의 이름 중복은 `409 LOCATION_NAME_DUPLICATED`를 반환한다.
+- 다른 조직의 locationId는 `404 LOCATION_NOT_FOUND`를 반환한다.
+- 자산 연결 후에는 사용 중인 위치 삭제를 차단한다.
 
 ## 9. Dashboard API
 
