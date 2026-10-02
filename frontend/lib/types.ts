@@ -1,8 +1,19 @@
+export type MemberRole = "OWNER" | "ADMIN" | "MANAGER" | "MEMBER";
+
 export type Organization = {
   id: number;
   name: string;
   description: string | null;
-  myRole: "OWNER" | "ADMIN" | "MANAGER" | "MEMBER";
+  myRole: MemberRole;
+};
+
+export type OrganizationMember = {
+  id: number;
+  userId: number;
+  email: string;
+  name: string;
+  role: MemberRole;
+  joinedAt: string;
 };
 
 export type LoginResponse = {

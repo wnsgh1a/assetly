@@ -144,7 +144,56 @@
 - 기대: `400`, `VALIDATION_ERROR`
 - 자동화: `OrganizationAccessFunctionalTests.validateOrganizationUpdate`
 
-## 5. 현재 프런트엔드 수동 시나리오
+## 5. 멤버 관리 기능 테스트
+
+#### FT-MEMBER-001 Owner의 멤버 추가와 목록 조회
+
+- 실행: 가입된 사용자 이메일과 역할로 멤버 추가 후 목록 조회
+- 기대: `200`, 추가된 사용자 정보와 역할 반환
+- 자동화: `OrganizationMemberFunctionalTests.ownerAddsAndFindsMembers`
+
+#### FT-MEMBER-002 중복 멤버와 미가입 사용자 차단
+
+- 기대: 중복 추가는 `409 ORGANIZATION_MEMBER_DUPLICATED`, 미가입 이메일은 `404 USER_NOT_FOUND`
+- 자동화: `OrganizationMemberFunctionalTests.rejectsDuplicateAndUnknownUser`
+
+#### FT-MEMBER-003 Manager와 Member의 멤버 관리 차단
+
+- 실행: 권한 없는 사용자가 멤버 목록 조회
+- 기대: `403`, `AUTH_FORBIDDEN`
+- 자동화: `OrganizationMemberFunctionalTests.regularMemberCannotFindMembers`
+
+#### FT-MEMBER-004 Owner의 역할 변경
+
+- 실행: Owner가 Member를 Manager로 변경
+- 기대: `200`, 변경된 역할 반환 및 저장
+- 자동화: `OrganizationMemberFunctionalTests.ownerChangesMemberRole`
+
+#### FT-MEMBER-005 마지막 Owner 보호
+
+- 실행: 유일한 Owner의 역할 변경과 제거 시도
+- 기대: `409`, `ORGANIZATION_LAST_OWNER_REQUIRED`
+- 자동화: `OrganizationMemberFunctionalTests.protectsLastOwner`
+
+#### FT-MEMBER-006 Admin의 관리 범위 제한
+
+- 실행: Admin이 Manager를 추가하고 Owner/Admin 대상 작업 및 상위 역할 지정을 시도
+- 기대: Manager 추가는 성공, 제한된 작업은 `403 AUTH_FORBIDDEN`
+- 자동화: `OrganizationMemberFunctionalTests.limitsAdminManagement`
+
+#### FT-MEMBER-007 Owner의 멤버 제거
+
+- 실행: Owner가 Member 제거
+- 기대: `200`, 이후 목록에서 제거됨
+- 자동화: `OrganizationMemberFunctionalTests.ownerRemovesMember`
+
+#### FT-MEMBER-008 조직 간 멤버 ID 격리
+
+- 실행: 다른 조직의 memberId로 역할 변경과 제거 시도
+- 기대: `404`, `ORGANIZATION_MEMBER_NOT_FOUND`
+- 자동화: `OrganizationMemberFunctionalTests.isolatesMemberResourcesByOrganization`
+
+## 6. 현재 프런트엔드 수동 시나리오
 
 ### FT-WEB-001 회원가입 화면
 
@@ -182,7 +231,14 @@
 - Owner는 수정 후 성공 메시지와 갱신된 조직명을 확인한다.
 - Owner가 아닌 멤버는 읽기 전용 화면을 보고 저장 버튼이 표시되지 않는다.
 
-## 6. 핵심 사용자 흐름
+### FT-WEB-007 멤버 관리
+
+- Owner와 Admin에게만 사이드바 멤버 메뉴가 표시된다.
+- 가입된 사용자 이메일과 허용된 역할로 멤버를 추가한다.
+- 역할 변경을 저장하고 확인 후 멤버를 제거한다.
+- 서버의 중복, 권한, 마지막 Owner 보호 오류를 화면에 표시한다.
+
+## 7. 핵심 사용자 흐름
 
 ### FT-E2E-001 신규 사용자 온보딩
 
@@ -196,15 +252,7 @@
 
 현재 상태: 브라우저 수동 실행 대상. API 구간은 자동화됨.
 
-## 7. 향후 구현과 함께 활성화할 케이스
-
-### 조직과 멤버
-
-- `FT-MEMBER-001`: Owner와 Admin만 멤버 목록을 조회한다.
-- `FT-MEMBER-002`: 허용된 역할만 멤버 역할을 변경한다.
-- `FT-MEMBER-003`: Member와 Manager의 관리 요청을 `403`으로 차단한다.
-- `FT-MEMBER-004`: 다른 조직의 멤버를 조회·수정·삭제할 수 없다.
-- `FT-ORG-005`: Owner만 조직 이름과 설명을 수정한다.
+## 8. 향후 구현과 함께 활성화할 케이스
 
 ### 위치와 카테고리
 
@@ -238,7 +286,7 @@
 - `FT-DASH-002`: 최근 자산과 최근 이력이 실제 데이터 기준으로 표시된다.
 - `FT-DASH-003`: 신규 조직은 모두 0과 빈 목록을 반환한다.
 
-## 8. 실행 명령
+## 9. 실행 명령
 
 백엔드 전체 테스트:
 
@@ -261,7 +309,7 @@ cd frontend
 npm run build
 ```
 
-## 9. 통과 기준
+## 10. 통과 기준
 
 - 현재 구현 기능의 자동 테스트가 전부 통과한다.
 - 프런트엔드 production build가 경고성 오류 없이 완료된다.
@@ -269,9 +317,16 @@ npm run build
 - 한 사용자의 조직 데이터가 다른 사용자에게 노출되지 않는다.
 - 테스트 실행 후 개발 DB에 테스트 데이터가 남지 않는다.
 
-## 10. 실행 기록
+## 11. 실행 기록
 
 실행 기록은 날짜, 대상 버전, 자동 테스트 결과, 수동 테스트 결과, 발견 결함 순서로 갱신한다. 최신 실행 결과가 위에 오도록 기록한다.
+
+### 2026-10-02 멤버 관리
+
+- 대상: 멤버 목록·추가·역할 변경·제거, Admin 관리 범위, 마지막 Owner 보호, 조직 간 데이터 격리
+- 백엔드 결과: 총 26개 통과, 실패 0, 오류 0, 건너뜀 0
+- 프런트엔드 결과: `/app/members` 멤버 관리 화면 production build 및 TypeScript 검사 통과
+- 정책 결과: Owner 전체 관리, Admin의 Manager/Member 관리, 비권한자 `403`, 다른 조직 memberId `404`
 
 ### 2026-10-02 Flyway 마이그레이션 도입
 
