@@ -451,6 +451,7 @@ Phase 1 프로젝트 뼈대부터 Phase 4 QR 현장 접근과 변경 이력을 �
 - Maven Wrapper
 - H2 기반 백엔드 테스트 환경
 - Playwright 기반 데스크톱·모바일 브라우저 테스트
+- 회원가입, 로그인, 첫 조직 생성과 빈 대시보드 진입 자동 검증
 - 비로그인 QR 접근 후 로그인과 원래 자산 화면 복귀 자동 검증
 - 모바일 QR 화면의 상태·위치·담당자 변경과 감사 이력 자동 검증
 - Java 21·Node.js 22 기반 백엔드·프론트엔드 멀티스테이지 Docker 이미지
@@ -464,7 +465,7 @@ Phase 1 프로젝트 뼈대부터 Phase 4 QR 현장 접근과 변경 이력을 �
 검증 결과:
 
 - `frontend`에서 `npm run build` 성공
-- `frontend`에서 `npm run test:e2e` 성공: 6개 통과, 4개 프로젝트 조건부 건너뜀
+- `frontend`에서 `npm run test:e2e` 성공: 8개 통과, 4개 프로젝트 조건부 건너뜀
 - `backend`에서 `.\mvnw.cmd test` 성공: 총 58개 테스트 통과
 - GitHub Actions 원격 실행에서 백엔드, 프론트엔드와 브라우저 작업 모두 통과
 - Flyway `V1`~`V4` 마이그레이션 적용과 Hibernate 스키마 검증 성공
@@ -578,6 +579,5 @@ npm run test:e2e
 
 다음 단계는 Phase 5~7의 제품 마감과 배포 준비입니다.
 
-1. 회원가입부터 첫 조직 생성까지 브라우저 자동화
-2. Docker 설치 환경에서 PostgreSQL 전체 구성 실기동 검증
-3. 실제 서버 배포, HTTPS와 백업 구성
+1. Docker 설치 환경에서 PostgreSQL 전체 구성 실기동 검증
+2. 실제 서버 배포, HTTPS와 백업 구성
