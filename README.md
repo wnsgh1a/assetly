@@ -466,6 +466,7 @@ Phase 1 프로젝트 뼈대부터 Phase 4 QR 현장 접근과 변경 이력을 �
 - `frontend`에서 `npm run build` 성공
 - `frontend`에서 `npm run test:e2e` 성공: 6개 통과, 4개 프로젝트 조건부 건너뜀
 - `backend`에서 `.\mvnw.cmd test` 성공: 총 58개 테스트 통과
+- GitHub Actions 원격 실행에서 백엔드, 프론트엔드와 브라우저 작업 모두 통과
 - Flyway `V1`~`V4` 마이그레이션 적용과 Hibernate 스키마 검증 성공
 - 상세 기능 테스트 기준과 실행 기록은 `docs/assetly-functional-test-spec.md` 참고
 

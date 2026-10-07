@@ -409,7 +409,7 @@ npm run test:e2e
 - 실행 환경: Ubuntu, Java 21, Node.js 22, Chromium, H2 로컬 프로필
 - 실패 분석: 백엔드·프론트엔드 로그와 Playwright 결과를 artifact로 7일간 보관
 - 로컬 사전 검증: 백엔드 58개 테스트, 프론트엔드 ESLint·build, Playwright 전체 실행
-- 원격 검증: 워크플로 push 후 GitHub Actions 결과로 최종 확인
+- 원격 검증: GitHub Actions 실행 #2에서 백엔드, 프론트엔드와 브라우저 작업 모두 통과
 
 ### 2026-10-07 운영 컨테이너와 환경변수 검증
 
