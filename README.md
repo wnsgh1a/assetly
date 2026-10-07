@@ -1,5 +1,7 @@
 # Assetly
 
+[![지속적 통합](https://github.com/wnsgh1a/assetly/actions/workflows/ci.yml/badge.svg)](https://github.com/wnsgh1a/assetly/actions/workflows/ci.yml)
+
 Assetly는 소규모 조직을 위한 QR 기반 자산 관리 SaaS입니다.
 
 회사, 연구실, 동아리, 교육기관처럼 여러 장비와 비품을 관리해야 하는 조직이 자산의 위치, 담당자, 상태, 변경 이력, 점검 기록을 한곳에서 관리할 수 있도록 돕는 웹 애플리케이션입니다.
@@ -456,6 +458,8 @@ Phase 1 프로젝트 뼈대부터 Phase 4 QR 현장 접근과 변경 이력을 �
 - 컨테이너 healthcheck, 시작 순서, 자동 재시작과 PostgreSQL 영속 볼륨
 - 운영 프로필의 필수 환경변수와 예시 JWT 키·기본 DB 비밀번호 차단
 - 런타임 `BACKEND_URL`을 사용하는 프론트엔드 API 프록시
+- GitHub push와 Pull Request에서 백엔드 테스트, 프론트엔드 검사·빌드, Playwright 핵심 흐름을 실행하는 CI
+- 실패한 브라우저 테스트의 서버 로그, 스크린샷과 trace를 7일간 보관하는 CI artifact
 
 검증 결과:
 
@@ -557,11 +561,22 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
+## GitHub Actions 자동 검증
+
+`.github/workflows/ci.yml`은 `main` push, Pull Request와 수동 실행에서 다음 작업을 수행합니다.
+
+1. Java 21과 Maven 캐시를 준비하고 백엔드 테스트를 실행합니다.
+2. Node.js 22와 npm 캐시를 준비하고 ESLint와 production build를 실행합니다.
+3. 앞선 검사가 통과하면 H2 기반 백엔드와 production 프론트엔드를 실행합니다.
+4. Chromium으로 조직 전환, 인증, QR 자산 조회와 현장 수정 흐름을 검증합니다.
+5. 성공 여부와 관계없이 서버 로그와 Playwright 실패 자료를 7일간 artifact로 보관합니다.
+
+같은 브랜치에 새 커밋이 올라오면 진행 중이던 이전 실행은 취소됩니다. 저장소의 `Actions` 탭에서 작업별 결과와 실패 자료를 확인할 수 있습니다.
+
 ## 다음 구현 목표
 
 다음 단계는 Phase 5~7의 제품 마감과 배포 준비입니다.
 
-1. GitHub Actions 테스트·빌드 자동화
-2. 회원가입부터 첫 조직 생성까지 브라우저 자동화
-3. Docker 설치 환경에서 PostgreSQL 전체 구성 실기동 검증
-4. 실제 서버 배포, HTTPS와 백업 구성
+1. 회원가입부터 첫 조직 생성까지 브라우저 자동화
+2. Docker 설치 환경에서 PostgreSQL 전체 구성 실기동 검증
+3. 실제 서버 배포, HTTPS와 백업 구성

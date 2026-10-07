@@ -18,7 +18,7 @@ Phase 7. 배포와 운영
 Phase 8. v1.1 기능 확장
 ```
 
-현재 상태(2026-10-07): Phase 0~4를 완료했고 Phase 5의 조직 전환·모바일 QR 흐름, Phase 6의 핵심 Playwright 자동화와 Phase 7의 운영 컨테이너 구성을 완료했다.
+현재 상태(2026-10-07): Phase 0~4를 완료했고 Phase 5의 조직 전환·모바일 QR 흐름, Phase 6의 핵심 Playwright 자동화와 Phase 7의 운영 컨테이너·GitHub Actions 구성을 완료했다.
 
 ## 2. Phase 0. 기획과 설계
 
@@ -229,7 +229,7 @@ Phase 8. v1.1 기능 확장
 
 ## 9. Phase 7. 배포와 운영
 
-상태: 진행 중 - 운영 Dockerfile, 전체 Compose와 환경변수 검증 완료. 실제 Docker·PostgreSQL 기동과 배포는 미완료
+상태: 진행 중 - 운영 Dockerfile, 전체 Compose, 환경변수 검증과 GitHub Actions CI 완료. 실제 Docker·PostgreSQL 기동과 배포는 미완료
 
 목표:
 

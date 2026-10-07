@@ -402,6 +402,15 @@ npm run test:e2e
 
 실행 기록은 날짜, 대상 버전, 자동 테스트 결과, 수동 테스트 결과, 발견 결함 순서로 갱신한다. 최신 실행 결과가 위에 오도록 기록한다.
 
+### 2026-10-07 GitHub Actions 자동 검증 구성
+
+- 대상: 백엔드 테스트, 프론트엔드 ESLint·production build, Playwright 핵심 사용자 흐름
+- 실행 조건: `main` push, Pull Request, GitHub 수동 실행
+- 실행 환경: Ubuntu, Java 21, Node.js 22, Chromium, H2 로컬 프로필
+- 실패 분석: 백엔드·프론트엔드 로그와 Playwright 결과를 artifact로 7일간 보관
+- 로컬 사전 검증: 백엔드 58개 테스트, 프론트엔드 ESLint·build, Playwright 전체 실행
+- 원격 검증: 워크플로 push 후 GitHub Actions 결과로 최종 확인
+
 ### 2026-10-07 운영 컨테이너와 환경변수 검증
 
 - 대상: 백엔드·프론트엔드 이미지, 전체 Compose, runtime API 프록시, health endpoint, 운영 비밀값 차단

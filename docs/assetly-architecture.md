@@ -291,16 +291,15 @@ GitHub Actions에서 다음을 수행한다.
 ### Pull Request
 
 - 백엔드 테스트
-- 프론트엔드 빌드
-- 린트
+- 프론트엔드 ESLint와 production build
+- H2 기반 백엔드와 production 프론트엔드를 연결한 Playwright 핵심 흐름
 
 ### main 브랜치 머지
 
-- 테스트
-- Docker 이미지 빌드
-- 서버 배포
+- Pull Request와 동일한 전체 검증
+- 추후 Docker 이미지 빌드와 서버 배포 추가
 
-초기에는 자동 배포까지 한 번에 가기 어렵다면, 테스트 자동화부터 먼저 구성한다.
+실패한 브라우저 검사의 서버 로그, 스크린샷과 trace는 GitHub Actions artifact로 7일간 보관한다. 배포 자동화는 실제 운영 서버가 결정된 뒤 별도 워크플로로 추가한다.
 
 ## 13. 테스트 전략
 
