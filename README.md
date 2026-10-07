@@ -395,7 +395,7 @@ Assetly는 다음 내용을 설명할 수 있는 프로젝트로 만드는 것�
 - Docker 기반 개발/운영 환경 구성
 - CI/CD와 실제 배포 경험
 
-## 현재 구현 상태 (2026-10-02)
+## 현재 구현 상태 (2026-10-07)
 
 Phase 1 프로젝트 뼈대부터 Phase 4 QR 현장 접근과 변경 이력을 완료했고, Phase 5의 조직 전환과 모바일 내비게이션까지 구현되어 있습니다.
 
@@ -451,16 +451,70 @@ Phase 1 프로젝트 뼈대부터 Phase 4 QR 현장 접근과 변경 이력을 �
 - Playwright 기반 데스크톱·모바일 브라우저 테스트
 - 비로그인 QR 접근 후 로그인과 원래 자산 화면 복귀 자동 검증
 - 모바일 QR 화면의 상태·위치·담당자 변경과 감사 이력 자동 검증
+- Java 21·Node.js 22 기반 백엔드·프론트엔드 멀티스테이지 Docker 이미지
+- PostgreSQL, 백엔드와 프론트엔드를 연결하는 전체 Docker Compose
+- 컨테이너 healthcheck, 시작 순서, 자동 재시작과 PostgreSQL 영속 볼륨
+- 운영 프로필의 필수 환경변수와 예시 JWT 키·기본 DB 비밀번호 차단
+- 런타임 `BACKEND_URL`을 사용하는 프론트엔드 API 프록시
 
 검증 결과:
 
 - `frontend`에서 `npm run build` 성공
 - `frontend`에서 `npm run test:e2e` 성공: 6개 통과, 4개 프로젝트 조건부 건너뜀
-- `backend`에서 `.\mvnw.cmd test` 성공: 총 54개 테스트 통과
+- `backend`에서 `.\mvnw.cmd test` 성공: 총 58개 테스트 통과
 - Flyway `V1`~`V4` 마이그레이션 적용과 Hibernate 스키마 검증 성공
 - 상세 기능 테스트 기준과 실행 기록은 `docs/assetly-functional-test-spec.md` 참고
 
-## 현재 실행 방법
+## 전체 Docker 실행
+
+Docker가 설치된 환경에서는 PostgreSQL, 백엔드와 프론트엔드를 한 번에 실행할 수 있습니다.
+
+### 1. 운영 환경변수 준비
+
+프로젝트 루트에서 예시 파일을 복사합니다.
+
+```powershell
+Copy-Item .env.example .env
+```
+
+`.env`의 `POSTGRES_PASSWORD`와 `JWT_SECRET`을 반드시 새로운 값으로 교체합니다. `JWT_SECRET`은 48바이트 이상이어야 하며 예시 값이나 기본값이면 백엔드 시작이 차단됩니다.
+
+PowerShell에서 64바이트 무작위 JWT 비밀값을 만들 수 있습니다.
+
+```powershell
+$bytes = New-Object byte[] 64
+[Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+[Convert]::ToBase64String($bytes)
+```
+
+`.env`는 Git에서 제외되므로 저장소에 커밋하지 않습니다.
+
+### 2. 구성 확인과 실행
+
+```powershell
+docker compose config
+docker compose up --build -d
+docker compose ps
+```
+
+모든 서비스가 healthy 상태가 되면 `http://localhost:3000`에서 접속합니다. 외부에는 프론트엔드 포트만 공개되며, 프론트엔드가 내부 네트워크의 백엔드로 API 요청을 전달합니다. PostgreSQL 포트는 로컬 호스트에만 바인딩됩니다.
+
+### 3. 로그와 종료
+
+```powershell
+docker compose logs -f backend frontend
+docker compose down
+```
+
+`docker compose down`은 컨테이너만 제거하고 PostgreSQL 데이터 볼륨은 보존합니다. 개발 데이터를 완전히 지울 때만 다음 명령을 사용합니다.
+
+```powershell
+docker compose down -v
+```
+
+현재 개발 PC에는 Docker가 설치되어 있지 않아 이미지 빌드와 PostgreSQL 컨테이너 기동은 아직 실행 검증하지 못했습니다. Dockerfile과 Compose YAML, 애플리케이션 빌드, API 프록시, health endpoint와 운영 비밀값 차단은 개별 검증했습니다.
+
+## 개별 로컬 실행
 
 ### 1. PostgreSQL 실행
 
@@ -470,7 +524,7 @@ Docker가 설치된 환경에서 프로젝트 루트에서 실행합니다.
 docker compose up -d postgres
 ```
 
-현재 개발 PC에는 Docker가 설치되어 있지 않으므로 PostgreSQL을 사용하는 전체 실행은 아직 검증하지 않았습니다. 백엔드 테스트는 H2 인메모리 DB로 검증했습니다.
+Docker 없이 개발할 때는 백엔드를 `local` 프로필로 실행해 H2 인메모리 DB를 사용할 수 있습니다.
 
 애플리케이션 시작 시 Flyway가 `backend/src/main/resources/db/migration`의 SQL을 순서대로 적용합니다. JPA는 스키마를 수정하지 않고 엔티티와 실제 스키마가 일치하는지만 검증합니다.
 
@@ -478,7 +532,7 @@ docker compose up -d postgres
 
 ```powershell
 cd backend
-.\mvnw.cmd spring-boot:run
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local"
 ```
 
 백엔드는 기본적으로 `http://localhost:8080`에서 실행됩니다.
@@ -507,7 +561,7 @@ npm run test:e2e
 
 다음 단계는 Phase 5~7의 제품 마감과 배포 준비입니다.
 
-1. 운영용 Dockerfile과 환경변수 검증
-2. GitHub Actions 테스트·빌드 자동화
-3. 회원가입부터 첫 조직 생성까지 브라우저 자동화
-4. PostgreSQL 운영 구성과 실제 배포
+1. GitHub Actions 테스트·빌드 자동화
+2. 회원가입부터 첫 조직 생성까지 브라우저 자동화
+3. Docker 설치 환경에서 PostgreSQL 전체 구성 실기동 검증
+4. 실제 서버 배포, HTTPS와 백업 구성
