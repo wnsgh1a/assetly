@@ -397,7 +397,7 @@ Assetly는 다음 내용을 설명할 수 있는 프로젝트로 만드는 것�
 - Docker 기반 개발/운영 환경 구성
 - CI/CD와 실제 배포 경험
 
-## 현재 구현 상태 (2026-10-07)
+## 현재 구현 상태 (2026-10-11)
 
 Phase 1 프로젝트 뼈대부터 Phase 4 QR 현장 접근과 변경 이력을 완료했고, Phase 5의 조직 전환과 모바일 내비게이션까지 구현되어 있습니다.
 
@@ -461,6 +461,7 @@ Phase 1 프로젝트 뼈대부터 Phase 4 QR 현장 접근과 변경 이력을 �
 - 런타임 `BACKEND_URL`을 사용하는 프론트엔드 API 프록시
 - GitHub push와 Pull Request에서 백엔드 테스트, 프론트엔드 검사·빌드, Playwright 핵심 흐름을 실행하는 CI
 - 실패한 브라우저 테스트의 서버 로그, 스크린샷과 trace를 7일간 보관하는 CI artifact
+- 실제 운영 Docker 이미지·PostgreSQL 16 기반 브라우저 테스트와 컨테이너 재생성 후 데이터 유지 검증
 
 검증 결과:
 
@@ -468,6 +469,7 @@ Phase 1 프로젝트 뼈대부터 Phase 4 QR 현장 접근과 변경 이력을 �
 - `frontend`에서 `npm run test:e2e` 성공: 8개 통과, 4개 프로젝트 조건부 건너뜀
 - `backend`에서 `.\mvnw.cmd test` 성공: 총 58개 테스트 통과
 - GitHub Actions 원격 실행에서 백엔드, 프론트엔드와 브라우저 작업 모두 통과
+- 운영 Docker 구성 실기동·세 서비스 healthy·데이터 영속성 검증 통과, PostgreSQL 기반 Playwright 8개 통과·4개 조건부 제외
 - Flyway `V1`~`V4` 마이그레이션 적용과 Hibernate 스키마 검증 성공
 - 상세 기능 테스트 기준과 실행 기록은 `docs/assetly-functional-test-spec.md` 참고
 
@@ -592,5 +594,5 @@ npm run test:e2e
 
 다음 단계는 Phase 5~7의 제품 마감과 배포 준비입니다.
 
-1. Docker 설치 환경에서 PostgreSQL 전체 구성 실기동 검증
-2. 실제 서버 배포, HTTPS와 백업 구성
+1. 실제 서버 배포와 HTTPS 구성
+2. PostgreSQL 백업·복원 절차와 운영 점검 구성
