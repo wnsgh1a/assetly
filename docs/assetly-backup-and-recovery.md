@@ -114,6 +114,8 @@ node --test scripts/database-backup.test.mjs
 
 CLI 인자 검증, 바이너리 보존, 파일 덮어쓰기 차단, 실패·잘못된 파일 정리, 복원 순서, 기존 DB 차단과 실패 시 진단 DB 보존을 검사한다.
 
+2026-10-11 검증 결과: 안전성 테스트 13개 통과. [GitHub Actions 실행](https://github.com/wnsgh1a/assetly/actions/runs/38110363669)의 코드 커밋 `b032fbc`에서 실제 PostgreSQL 큰 아카이브 복원, 전체 행·이력·Flyway 기록 비교, 시퀀스·기존 DB 보호와 원본 불변 검증이 통과했다. 운영 앱을 복원 DB로 전환한 결과는 아니다.
+
 `backups/`, `*.dump`, `*.partial`은 Git에서 제외한다. 백업은 사용자 정보와 비밀번호 해시를 포함하므로 GitHub artifact에도 업로드하지 않는다. Unix에서는 새 파일 권한을 `0600`, 새 디렉터리를 `0700`으로 요청하며 Windows에서는 별도의 NTFS ACL을 확인해야 한다.
 
 기존 파일의 권한·암호화는 도구가 바꾸지 않는다. 백업 암호화와 외부 보관은 서버 운영 구성에서 추가해야 한다.

@@ -21,7 +21,7 @@
 
 ### 확인된 검증 결과
 
-[운영 구성 검증에 성공한 GitHub Actions 실행](https://github.com/wnsgh1a/assetly/actions/runs/38108489291)에서 다음 항목을 확인했습니다.
+[운영 구성과 백업·복원 검증에 성공한 GitHub Actions 실행](https://github.com/wnsgh1a/assetly/actions/runs/38110363669)에서 다음 항목을 확인했습니다.
 
 - 백엔드: 총 **58개 테스트 통과**.
 - 프론트엔드: ESLint 검사와 production build 성공.
@@ -30,6 +30,8 @@
 - PostgreSQL 16, 운영 프로필 백엔드와 프론트엔드: 세 서비스 모두 healthy.
 - Flyway `V1`~`V4` 마이그레이션과 Hibernate 스키마 검증 성공.
 - 컨테이너 제거·재생성 후 계정, 조직, Owner 권한, 자산, 위치, QR 공개 코드와 대시보드 데이터 유지 확인.
+- 백업 도구 안전성 테스트 **13개 통과**.
+- 실제 DB 백업·새 DB 복원 후 전체 행·비밀번호 해시·QR 코드·이력·Flyway 기록 일치, identity 시퀀스 정상, 원본 불변과 기존 대상 덮어쓰기 차단 확인.
 
 건너뛴 항목은 테스트 프로젝트별 실행 조건에 따른 제외이며, 모든 테스트 조합을 실행했다는 뜻은 아닙니다. 자동화 범위와 상세 실행 기록은 [기능 테스트 명세서](docs/assetly-functional-test-spec.md)를 참고합니다.
 
