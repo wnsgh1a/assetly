@@ -2,562 +2,248 @@
 
 [![지속적 통합](https://github.com/wnsgh1a/assetly/actions/workflows/ci.yml/badge.svg)](https://github.com/wnsgh1a/assetly/actions/workflows/ci.yml)
 
-Assetly는 소규모 조직을 위한 QR 기반 자산 관리 SaaS입니다.
+소규모 조직을 위한 QR 기반 자산 관리 웹 애플리케이션입니다. 회사, 연구실, 동아리, 교육기관의 장비와 비품을 조직별로 관리하고, 현장에서 QR을 통해 위치·상태·담당자를 확인하거나 변경할 수 있습니다.
 
-회사, 연구실, 동아리, 교육기관처럼 여러 장비와 비품을 관리해야 하는 조직이 자산의 위치, 담당자, 상태, 변경 이력, 점검 기록을 한곳에서 관리할 수 있도록 돕는 웹 애플리케이션입니다.
+## 현재 상태
 
-## 프로젝트 목표
+기준일: **2026-10-11**
 
-이 프로젝트의 목표는 단순한 CRUD 연습 프로젝트를 만드는 것이 아닙니다.
+회원가입부터 조직 생성, 자산 등록, QR 현장 수정과 변경 이력 조회까지 핵심 업무 흐름이 구현되어 있습니다. 운영용 Docker 구성과 PostgreSQL 데이터 영속성도 GitHub Actions에서 검증했습니다.
 
-최종 목표는 다음과 같습니다.
+**실제 서버 배포는 아직 완료되지 않았습니다.** 공개 도메인, HTTPS, DB 백업·복원과 운영 점검 구성이 남아 있습니다. CI 통과와 운영 서비스 배포 완료는 구분합니다.
 
-> 실제 사용 가능한 소규모 자산관리 SaaS를 기획, 설계, 개발, 배포, 운영해보는 것
+- Phase 0~4: 기획·설계, 프로젝트 기반, 인증·조직, 자산 관리, QR·변경 이력 완료.
+- Phase 5: 조직 전환, 모바일 내비게이션과 QR 현장 흐름 구현. 전체 화면의 제품 마감은 진행 중.
+- Phase 6: 현재 핵심 흐름의 백엔드·브라우저 테스트 자동화 완료.
+- Phase 7: 운영 컨테이너, CI, PostgreSQL 실기동·데이터 유지 검증 완료. 실제 배포·운영 준비는 진행 중.
+- Phase 8: 이미지 업로드, 점검, 대여·반납 등의 확장 기능은 미구현.
 
-Assetly는 포트폴리오용 게시판 프로젝트가 아니라, 사용자가 회원가입하고 조직을 생성한 뒤 자산을 등록하고 QR을 통해 현장에서 관리할 수 있는 작은 업무 서비스를 목표로 합니다.
+### 확인된 검증 결과
 
-## 핵심 아이디어
+[운영 구성 검증에 성공한 GitHub Actions 실행](https://github.com/wnsgh1a/assetly/actions/runs/38108489291)에서 다음 항목을 확인했습니다.
 
-많은 조직에서 자산 정보는 엑셀, 사진 폴더, 메신저, 구두 전달 등으로 흩어져 있습니다.
+- 백엔드: 총 **58개 테스트 통과**.
+- 프론트엔드: ESLint 검사와 production build 성공.
+- H2 기반 브라우저 테스트: **8개 통과, 4개 프로젝트 조건부 건너뜀**.
+- 실제 Docker·PostgreSQL 기반 브라우저 테스트: **8개 통과, 4개 프로젝트 조건부 건너뜀**.
+- PostgreSQL 16, 운영 프로필 백엔드와 프론트엔드: 세 서비스 모두 healthy.
+- Flyway `V1`~`V4` 마이그레이션과 Hibernate 스키마 검증 성공.
+- 컨테이너 제거·재생성 후 계정, 조직, Owner 권한, 자산, 위치, QR 공개 코드와 대시보드 데이터 유지 확인.
 
-이런 방식은 다음 문제를 만듭니다.
+건너뛴 항목은 테스트 프로젝트별 실행 조건에 따른 제외이며, 모든 테스트 조합을 실행했다는 뜻은 아닙니다. 자동화 범위와 상세 실행 기록은 [기능 테스트 명세서](docs/assetly-functional-test-spec.md)를 참고합니다.
 
-- 자산의 현재 위치를 알기 어렵다.
-- 누가 사용 중인지 확인하기 어렵다.
-- 마지막 점검일이나 상태 변경 이력이 남지 않는다.
-- 현장에서 확인한 내용을 다시 사무실에서 수기로 입력해야 한다.
-- 같은 장소를 여러 번 방문하는 비효율이 생긴다.
+## 구현된 기능
 
-Assetly는 이 문제를 QR 기반 흐름으로 해결합니다.
+### 계정과 조직
 
-1. 관리자가 자산을 등록한다.
-2. 자산별 QR 코드를 발급한다.
-3. QR 라벨을 장비나 비품에 부착한다.
-4. 현장 담당자가 휴대폰으로 QR을 스캔한다.
-5. 자산 상세 정보를 확인한다.
-6. 위치, 상태, 담당자, 점검 내용을 현장에서 바로 갱신한다.
-7. 모든 변경 이력이 자동으로 기록된다.
+- 회원가입, 로그인, JWT access token 기반 인증과 로그아웃.
+- 첫 조직 생성 온보딩과 로그인 후 조직 유무에 따른 화면 이동.
+- 내 조직 목록, 조직 선택·전환과 선택 상태 유지.
+- 현재 계정에서 추가 조직 생성.
+- 조직 상세 조회와 Owner 전용 조직 설정 수정.
+- 멤버 목록, 가입된 사용자의 이메일을 통한 멤버 추가, 역할 변경과 제거.
+- 마지막 Owner 보호, 조직 멤버십·역할 검사와 다른 조직 데이터 접근 차단.
 
-## 한 줄 소개
+멤버 추가는 **이미 가입한 사용자**를 조직에 연결하는 방식입니다. 이메일 초대 발송 기능은 아직 없습니다.
 
-소규모 조직이 자산에 QR을 붙이고, 현장에서 스캔해 위치와 상태를 바로 관리하는 웹 애플리케이션.
+### 자산과 기준 정보
 
-## 주요 사용자
+- 조직별 자산 등록, 상세 조회, 수정과 비활성화.
+- 자산 검색, 상태·카테고리·위치 필터와 페이지 이동.
+- 자산번호 중복 방지와 위치·카테고리·담당자 연결.
+- 위치·카테고리 생성, 조회, 수정과 삭제.
+- 기준 정보 이름 중복 방지와 사용 중인 위치·카테고리 삭제 차단.
+- 실제 자산 데이터로 계산하는 대시보드와 최근 변경 활동.
 
-Assetly의 1차 사용자는 소규모 조직의 자산 관리자입니다.
+자산 삭제는 기록을 보존하는 **비활성화 방식**입니다. 데이터의 조직 소속과 권한은 서버에서 검증합니다.
 
-예시는 다음과 같습니다.
+### QR과 변경 이력
 
-- 연구실 장비 관리자
-- 동아리 비품 관리자
-- 스타트업 사무기기 관리자
-- 교육기관 기자재 담당자
-- 사내 IT 장비 담당자
+- 자산별 `publicCode` 발급과 `/a/{publicCode}` 접근 경로.
+- 자산 상세에서 QR 표시, 링크 복사와 SVG 다운로드.
+- 비로그인 QR 접근 시 로그인 후 원래 QR 주소로 복귀.
+- QR 자산의 조직을 활성 조직으로 연결.
+- 모바일 현장 화면에서 권한에 따른 상태·위치·담당자 변경.
+- 자산 생성, 필드별 수정과 비활성화 이력 기록.
+- 자산별·조직 전체 변경 이력 조회와 필터.
 
-2차 사용자는 실제 자산을 사용하는 구성원입니다.
+QR 링크는 비밀 없는 공개 조회 기능이 아닙니다. `publicCode`를 알고 있어도 로그인과 해당 조직 멤버십이 필요합니다.
 
-- 장비를 대여하는 팀원
-- 현장에서 자산 상태를 확인하는 직원
-- 점검 결과를 기록하는 담당자
+### 화면과 실행 기반
 
-## v1.0 핵심 흐름
-
-Assetly v1.0은 기능 개수보다 실제 사용 흐름 완성을 우선합니다.
-
-### 관리자 흐름
-
-1. 회원가입한다.
-2. 로그인한다.
-3. 조직을 생성한다.
-4. 위치를 등록한다.
-5. 카테고리를 등록한다.
-6. 자산을 등록한다.
-7. QR 코드를 확인한다.
-8. 자산 상세를 조회한다.
-9. 자산 정보를 수정한다.
-10. 변경 이력을 확인한다.
-
-### 현장 사용자 흐름
-
-1. 자산에 붙은 QR을 스캔한다.
-2. 자산 상세 페이지에 접근한다.
-3. 로그인이 필요하면 로그인한다.
-4. 권한이 있으면 위치, 상태, 담당자를 수정한다.
-5. 수정 내용이 변경 이력에 남는다.
-
-이 두 흐름이 실제 배포 환경에서 동작하면 v1.0의 핵심 목표는 달성됩니다.
-
-## v1.0 포함 기능
-
-- 회원가입
-- 로그인
-- JWT 기반 인증
-- 조직 생성
-- 조직 멤버 구조
-- 역할 기반 권한 처리
-- 자산 등록
-- 자산 목록 조회
-- 자산 상세 조회
-- 자산 수정
-- 자산 삭제 또는 비활성화
-- 위치 관리
-- 카테고리 관리
-- QR 접근 코드 발급
-- QR URL 기반 자산 접근
-- 자산 변경 이력 기록
-- 대시보드 요약
-
-## v1.0에서 제외할 기능
-
-다음 기능은 좋은 기능이지만 v1.0 목표는 아닙니다.
-
-- 결제
-- 실시간 채팅
-- 복잡한 통계
-- 모바일 네이티브 앱
-- Kafka
-- Redis 기반 고도화
-- 소셜 로그인
-- 조직별 요금제
-- 대량 Excel 가져오기
-- 대량 QR 라벨 출력
-- 관리자용 슈퍼 어드민
-- 마케팅 랜딩 페이지
-
-v1.0에서는 핵심 업무 흐름을 먼저 완성하고, 실제 사용하면서 필요성이 확인된 기능만 v1.1 이후에 추가합니다.
-
-## 기술 스택
-
-### Frontend
-
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
-- TanStack Query
-
-### Backend
-
-- Spring Boot
-- Spring Security
-- JWT
-- JPA
-- PostgreSQL
-
-### Infra
-
-- Docker
-- Docker Compose
-- Nginx
-- GitHub Actions
-- AWS EC2 또는 Lightsail
-- HTTPS
-
-### Later
-
-필요성이 생기면 다음 기술을 도입합니다.
-
-- S3 호환 Object Storage
-- Redis
-- 이메일 알림
-- 모니터링
-- 로그 수집
-
-## 예상 프로젝트 구조
-
-```text
-assetly/
-  backend/
-    src/
-    build.gradle
-  frontend/
-    app/
-    package.json
-  docs/
-    assetly-project-guide.md
-    assetly-v1-product-plan.md
-    assetly-screen-flow.md
-    assetly-db-design.md
-    assetly-api-spec.md
-    assetly-architecture.md
-    assetly-development-roadmap.md
-    assetly-decision-log.md
-  docker-compose.yml
-  README.md
-```
-
-## 문서 구조
-
-Assetly는 개발 전에 서비스 방향과 설계를 문서화한 뒤 구현합니다.
-
-현재 문서는 다음 역할을 가집니다.
-
-| 문서 | 역할 |
-| --- | --- |
-| `docs/assetly-project-guide.md` | 프로젝트 전체 방향과 개발 원칙 |
-| `docs/assetly-v1-product-plan.md` | v1.0 제품 기획서 |
-| `docs/assetly-screen-flow.md` | 화면 흐름과 사용자 시나리오 |
-| `docs/assetly-db-design.md` | DB 모델과 ERD 설명 |
-| `docs/assetly-api-spec.md` | REST API 명세 초안 |
-| `docs/assetly-architecture.md` | 전체 아키텍처와 배포 구조 |
-| `docs/assetly-development-roadmap.md` | 단계별 개발 로드맵 |
-| `docs/assetly-decision-log.md` | 중요한 결정과 이유 기록 |
-| `docs/assetly-functional-test-spec.md` | 기능 테스트 케이스, 실행 기준, 결과 기록 |
-
-## 핵심 도메인
-
-### User
-
-서비스 사용자 계정입니다.
-
-### Organization
-
-Assetly를 사용하는 조직입니다.
-
-예시는 회사, 연구실, 동아리, 교육기관입니다.
-
-### OrganizationMember
-
-사용자와 조직의 관계입니다.
-
-한 사용자는 여러 조직에 속할 수 있고, 조직마다 다른 역할을 가질 수 있습니다.
-
-### Asset
-
-관리 대상 자산입니다.
-
-예시는 노트북, 모니터, 카메라, 실험 장비, 공구, 비품입니다.
-
-### Location
-
-자산이 위치한 장소입니다.
-
-예시는 개발팀 사무실, 본관 3층, 실험실 A, 창고입니다.
-
-### AssetCategory
-
-자산 분류입니다.
-
-예시는 노트북, 모니터, 카메라, 비품입니다.
-
-### AssetHistory
-
-자산 변경 이력입니다.
-
-누가, 언제, 무엇을 변경했는지 기록합니다.
+- 대시보드, 자산 목록·등록·상세·수정, 기준 정보, 멤버 관리, 조직 설정과 이력 화면.
+- 모바일 조직 선택, 공통 내비게이션과 로그아웃 컨트롤.
+- Next.js의 같은 출처 `/api/*` 프록시와 런타임 `BACKEND_URL` 설정.
+- Flyway 마이그레이션, JPA 스키마 검증과 H2 로컬 개발 프로필.
+- 운영용 멀티스테이지 Docker 이미지, Compose healthcheck, 시작 순서와 자동 재시작.
+- PostgreSQL 영속 볼륨과 운영 환경변수 검증.
+- GitHub Actions의 백엔드·프론트엔드·브라우저·Docker 검증.
 
 ## 권한 구조
 
-조직 안에서 사용자는 역할을 가집니다.
+역할은 계정 전체가 아니라 **조직마다 따로** 부여됩니다. 같은 사용자가 한 조직에서는 Owner, 다른 조직에서는 Member일 수 있습니다.
 
-| 역할 | 설명 |
-| --- | --- |
-| Owner | 조직 생성자. 조직 설정, 멤버 관리, 모든 기능 사용 가능 |
-| Admin | 자산 등록, 수정, 삭제, 사용자 관리 가능 |
-| Manager | 자산 상태 변경, 위치 변경, 대여/반납, 점검 가능 |
-| Member | 자산 조회, 대여 신청 가능 |
+- **Owner**: 조직 설정, 멤버 관리, 자산과 기준 정보 관리, 현장 수정과 조회.
+- **Admin**: 자산과 기준 정보 관리, 현장 수정과 조회. 멤버 관리에서는 Manager·Member만 관리할 수 있으며 Owner·Admin을 추가하거나 변경·제거할 수 없습니다. 조직 설정 수정은 불가합니다.
+- **Manager**: 자산과 이력 조회, 자산의 상태·위치·담당자 변경. 자산 등록·비활성화와 기준 정보 관리는 불가합니다.
+- **Member**: 자산과 변경 이력 조회. 자산 수정은 불가합니다.
 
-서버는 모든 요청에서 다음을 확인해야 합니다.
+마지막 Owner를 제거하거나 다른 역할로 변경할 수 없습니다. 다른 조직의 자산·멤버·위치·카테고리는 ID를 알아도 접근할 수 없도록 검사합니다.
 
-1. 로그인한 사용자인가?
-2. 해당 조직의 멤버인가?
-3. 요청한 작업을 수행할 권한이 있는가?
-4. 접근하려는 리소스가 해당 조직에 속하는가?
+## 처음 사용하는 흐름
 
-## QR 접근 방식
+1. 회원가입하고 로그인합니다.
+2. 첫 조직을 생성합니다. 생성자는 Owner가 됩니다.
+3. 위치와 카테고리를 등록합니다.
+4. 자산을 등록하고 필요한 위치·카테고리·담당자를 연결합니다.
+5. 자산 상세에서 QR을 확인하거나 내려받아 부착합니다.
+6. 휴대폰으로 QR을 스캔하고 로그인합니다.
+7. 권한에 따라 위치·상태·담당자를 변경합니다.
+8. 자산 상세나 조직 이력 화면에서 변경 내용을 확인합니다.
 
-자산에는 QR 접근용 공개 코드인 `publicCode`를 둡니다.
+## 데이터 정책
 
-QR URL 예시는 다음과 같습니다.
+- 고정된 예시 조직·자산을 넣는 시드 데이터는 제공하지 않습니다. 새 DB에서는 회원가입과 조직 생성부터 시작합니다.
+- 대시보드 숫자와 활동 내역은 API의 실제 데이터로 표시합니다.
+- `local` 프로필은 H2 인메모리 DB를 사용합니다. **백엔드 프로세스 종료 시 데이터가 사라집니다.**
+- 전체 Docker 실행은 PostgreSQL 볼륨에 데이터를 보존합니다. 컨테이너 재생성만으로 데이터가 초기화되지 않습니다.
+- 브라우저 테스트는 연결한 서버에 테스트 계정·조직·자산을 만듭니다. 운영 DB가 아닌 전용 로컬·테스트 환경에서 실행합니다.
+- CI는 격리된 실행 환경을 사용하며 Docker 검증 종료 후 해당 테스트 컨테이너와 볼륨을 정리합니다. 개발 PC나 운영 DB에 CI 데이터를 넣지 않습니다.
 
-```text
-https://assetly.example.com/a/q8K2md91
-```
+## 기술 스택
 
-이 URL은 자산번호를 직접 노출하지 않습니다.
+- 프론트엔드: Next.js 15, React 19, TypeScript, Tailwind CSS, lucide-react, qrcode.react.
+- 백엔드: Java 21, Spring Boot, Spring Security, JWT, Spring Data JPA, Maven Wrapper.
+- DB: PostgreSQL 16, Flyway. 로컬 개발과 백엔드 테스트는 H2 사용.
+- 검증: 백엔드 자동 테스트, ESLint, production build, Playwright Chromium 데스크톱·모바일 프로젝트.
+- 실행·CI: Docker, Docker Compose, GitHub Actions, Node.js 22.
 
-QR을 스캔하면 프론트엔드의 `/a/{publicCode}` 경로로 이동하고, 백엔드는 다음을 확인합니다.
+정확한 의존성과 버전은 `backend/pom.xml`, `frontend/package.json`과 `frontend/package-lock.json`을 기준으로 합니다. Nginx·HTTPS·클라우드 서버는 현재 완료된 인프라가 아니라 다음 배포 단계의 대상입니다.
 
-1. publicCode에 해당하는 자산이 있는가?
-2. 사용자가 로그인했는가?
-3. 사용자가 해당 자산의 조직 멤버인가?
-4. 해당 사용자가 어떤 작업을 할 수 있는가?
+## 로컬 개발 실행: Docker 없이
 
-권한이 없는 사용자는 자산 정보를 볼 수 없습니다.
+필요한 도구는 **JDK 21**과 **Node.js 22 / npm**입니다. Maven은 저장소의 Wrapper를 사용합니다. 아래 명령은 Windows PowerShell 기준입니다.
 
-## 개발 로드맵
+### 1. 백엔드
 
-### Phase 0. 기획과 설계
-
-- 프로젝트 방향 정리
-- 제품 기획서 작성
-- 화면 흐름 설계
-- DB 설계
-- API 명세 작성
-- 아키텍처 설계
-
-### Phase 1. 프로젝트 뼈대 생성
-
-- 백엔드 Spring Boot 프로젝트 생성
-- 프론트엔드 Next.js 프로젝트 생성
-- PostgreSQL Docker Compose 구성
-- 기본 실행 확인
-
-### Phase 2. 인증과 조직
-
-- 회원가입
-- 로그인
-- JWT 인증
-- 조직 생성
-- 조직 멤버 구조
-- 권한 체크 기반 구조
-
-### Phase 3. 자산 관리
-
-- 위치 관리
-- 카테고리 관리
-- 자산 등록
-- 자산 목록
-- 자산 상세
-- 자산 수정
-
-### Phase 4. QR과 변경 이력
-
-- publicCode 생성
-- QR 접근 URL
-- 자산 변경 이력
-- 권한별 자산 상세 접근
-
-### Phase 5. 프론트엔드 앱 완성
-
-- 앱 레이아웃
-- 대시보드
-- 로딩/에러/빈 상태
-- 모바일 자산 상세 화면
-
-### Phase 6. 테스트와 품질 개선
-
-- 인증 테스트
-- 조직 권한 테스트
-- 자산 CRUD 테스트
-- 다른 조직 데이터 접근 차단 테스트
-- 핵심 흐름 수동 검증
-
-### Phase 7. 배포와 운영
-
-- Dockerfile
-- 운영 Docker Compose
-- Nginx
-- HTTPS
-- GitHub Actions
-- 서버 배포
-
-## 로컬 개발 예정 방식
-
-초기 개발은 다음 방식으로 진행할 예정입니다.
-
-```text
-PostgreSQL: Docker Compose
-Backend: Spring Boot local run
-Frontend: Next.js local dev server
-```
-
-이후 배포 단계에서 프론트엔드, 백엔드, DB 실행 방식을 운영 환경에 맞게 정리합니다.
-
-## 환경변수 예시
-
-백엔드에서 사용할 환경변수 후보:
-
-```env
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/assetly
-SPRING_DATASOURCE_USERNAME=assetly
-SPRING_DATASOURCE_PASSWORD=assetly
-JWT_SECRET=change-me
-JWT_ACCESS_TOKEN_EXPIRES_IN=3600
-```
-
-프론트엔드에서 사용할 환경변수 후보:
-
-```env
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api
-```
-
-## 포트폴리오에서 강조할 점
-
-Assetly는 다음 내용을 설명할 수 있는 프로젝트로 만드는 것이 목표입니다.
-
-- 실제 문제에서 출발한 서비스 기획
-- 멀티테넌트 SaaS 구조 설계
-- 조직과 역할 기반 권한 처리
-- JWT 인증
-- REST API 설계
-- PostgreSQL 기반 관계형 데이터 모델링
-- 변경 이력 기반 감사 로그 설계
-- QR 기반 현장 업무 흐름 설계
-- Docker 기반 개발/운영 환경 구성
-- CI/CD와 실제 배포 경험
-
-## 현재 구현 상태 (2026-10-11)
-
-Phase 1 프로젝트 뼈대부터 Phase 4 QR 현장 접근과 변경 이력을 완료했고, Phase 5의 조직 전환과 모바일 내비게이션까지 구현되어 있습니다.
-
-완료된 항목:
-
-- Spring Boot 백엔드 기본 구조
-- 회원가입 API
-- 로그인 API와 JWT access token 발급
-- 인증 사용자 조회 기반
-- 조직 생성 API
-- 내 조직 목록 API
-- 조직 상세 조회와 Owner 전용 수정 API
-- 재사용 가능한 조직 멤버십·역할 권한 검사
-- 비멤버 조직 데이터 접근 차단
-- 조직 생성자를 Owner로 등록하는 구조
-- 멤버 목록 조회와 가입 사용자 이메일 기반 추가
-- Owner/Admin 역할 범위에 따른 역할 변경과 멤버 제거
-- 마지막 Owner 보호와 조직 간 멤버 데이터 격리
-- 조직별 위치 생성·목록·수정·삭제 API
-- 조직별 카테고리 생성·목록·수정·삭제 API
-- 기준 정보 이름 중복 방지와 조직 간 데이터 격리
-- 자산 등록·검색 목록·상세·역할별 수정·비활성화 API
-- 자산번호 중복 방지, 공개 코드 발급, 담당자·위치·카테고리 연결
-- 실제 자산 상태 합계와 최근 자산을 사용하는 대시보드 API
-- 사용 중인 위치와 카테고리 삭제 차단
-- Next.js 프론트엔드 기본 구조
-- 회원가입 화면과 API 연결
-- 로그인 화면과 API 연결
-- 첫 조직 생성 온보딩
-- 로그인 후 조직 유무에 따른 화면 이동
-- 여러 소속 조직 선택·전환과 선택 상태 유지
-- 현재 계정에서 새 조직을 추가하는 진입 경로
-- QR 자산 진입 시 해당 자산의 조직을 활성 조직으로 연결
-- 모바일 조직 선택, 가로 내비게이션과 로그아웃 컨트롤
-- 앱 대시보드 기본 레이아웃
-- 조직 설정 화면과 API 연결
-- 멤버 관리 화면과 API 연결
-- 위치·카테고리 통합 관리 화면과 API 연결
-- 자산 목록·등록·상세·수정 화면과 API 연결
-- 검색·상태·카테고리·위치 필터와 페이지 이동
-- 실제 데이터 기반 대시보드
-- 로그인과 조직 권한을 확인하는 `publicCode` 기반 QR 자산 조회
-- 자산별 QR 표시, 링크 복사와 SVG 다운로드
-- 로그인 후 원래 QR 주소로 복귀하는 모바일 현장 화면
-- 자산 등록·필드별 수정·비활성화 변경 이력 기록
-- 자산별·조직 전체 변경 이력 화면과 필터
-- 실제 변경 이력을 사용하는 대시보드 최근 활동
-- PostgreSQL Docker Compose 설정
-- Flyway 기반 DB 마이그레이션
-- JPA 스키마 자동 변경 비활성화와 스키마 검증
-- Maven Wrapper
-- H2 기반 백엔드 테스트 환경
-- Playwright 기반 데스크톱·모바일 브라우저 테스트
-- 회원가입, 로그인, 첫 조직 생성과 빈 대시보드 진입 자동 검증
-- 비로그인 QR 접근 후 로그인과 원래 자산 화면 복귀 자동 검증
-- 모바일 QR 화면의 상태·위치·담당자 변경과 감사 이력 자동 검증
-- Java 21·Node.js 22 기반 백엔드·프론트엔드 멀티스테이지 Docker 이미지
-- PostgreSQL, 백엔드와 프론트엔드를 연결하는 전체 Docker Compose
-- 컨테이너 healthcheck, 시작 순서, 자동 재시작과 PostgreSQL 영속 볼륨
-- 운영 프로필의 필수 환경변수와 예시 JWT 키·기본 DB 비밀번호 차단
-- 런타임 `BACKEND_URL`을 사용하는 프론트엔드 API 프록시
-- GitHub push와 Pull Request에서 백엔드 테스트, 프론트엔드 검사·빌드, Playwright 핵심 흐름을 실행하는 CI
-- 실패한 브라우저 테스트의 서버 로그, 스크린샷과 trace를 7일간 보관하는 CI artifact
-- 실제 운영 Docker 이미지·PostgreSQL 16 기반 브라우저 테스트와 컨테이너 재생성 후 데이터 유지 검증
-
-검증 결과:
-
-- `frontend`에서 `npm run build` 성공
-- `frontend`에서 `npm run test:e2e` 성공: 8개 통과, 4개 프로젝트 조건부 건너뜀
-- `backend`에서 `.\mvnw.cmd test` 성공: 총 58개 테스트 통과
-- GitHub Actions 원격 실행에서 백엔드, 프론트엔드와 브라우저 작업 모두 통과
-- 운영 Docker 구성 실기동·세 서비스 healthy·데이터 영속성 검증 통과, PostgreSQL 기반 Playwright 8개 통과·4개 조건부 제외
-- Flyway `V1`~`V4` 마이그레이션 적용과 Hibernate 스키마 검증 성공
-- 상세 기능 테스트 기준과 실행 기록은 `docs/assetly-functional-test-spec.md` 참고
-
-## 전체 Docker 실행
-
-Docker가 설치된 환경에서는 PostgreSQL, 백엔드와 프론트엔드를 한 번에 실행할 수 있습니다.
-
-### 1. 운영 환경변수 준비
-
-프로젝트 루트에서 예시 파일을 복사합니다.
-
-```powershell
-Copy-Item .env.example .env
-```
-
-`.env`의 `POSTGRES_PASSWORD`와 `JWT_SECRET`을 반드시 새로운 값으로 교체합니다. `JWT_SECRET`은 48바이트 이상이어야 하며 예시 값이나 기본값이면 백엔드 시작이 차단됩니다.
-
-PowerShell에서 64바이트 무작위 JWT 비밀값을 만들 수 있습니다.
-
-```powershell
-$bytes = New-Object byte[] 64
-[Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
-[Convert]::ToBase64String($bytes)
-```
-
-`.env`는 Git에서 제외되므로 저장소에 커밋하지 않습니다.
-
-### 2. 구성 확인과 실행
-
-```powershell
-docker compose config
-docker compose up --build -d
-docker compose ps
-```
-
-모든 서비스가 healthy 상태가 되면 `http://localhost:3000`에서 접속합니다. 외부에는 프론트엔드 포트만 공개되며, 프론트엔드가 내부 네트워크의 백엔드로 API 요청을 전달합니다. PostgreSQL 포트는 로컬 호스트에만 바인딩됩니다.
-
-### 3. 로그와 종료
-
-```powershell
-docker compose logs -f backend frontend
-docker compose down
-```
-
-`docker compose down`은 컨테이너만 제거하고 PostgreSQL 데이터 볼륨은 보존합니다. 개발 데이터를 완전히 지울 때만 다음 명령을 사용합니다.
-
-```powershell
-docker compose down -v
-```
-
-현재 개발 PC에는 Docker와 WSL이 설치되어 있지 않습니다. 실제 이미지 빌드와 PostgreSQL 컨테이너 기동 검증은 GitHub Actions의 `Docker 및 PostgreSQL 검증` 작업에서 실행합니다. 로컬 컨테이너 실행에는 Docker 설치가 필요합니다.
-
-## 개별 로컬 실행
-
-### 1. PostgreSQL 실행
-
-Docker가 설치된 환경에서 프로젝트 루트에서 실행합니다.
-
-```powershell
-docker compose up -d postgres
-```
-
-Docker 없이 개발할 때는 백엔드를 `local` 프로필로 실행해 H2 인메모리 DB를 사용할 수 있습니다.
-
-애플리케이션 시작 시 Flyway가 `backend/src/main/resources/db/migration`의 SQL을 순서대로 적용합니다. JPA는 스키마를 수정하지 않고 엔티티와 실제 스키마가 일치하는지만 검증합니다.
-
-### 2. 백엔드 실행
+프로젝트 루트에서 실행합니다.
 
 ```powershell
 cd backend
 .\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local"
 ```
 
-백엔드는 기본적으로 `http://localhost:8080`에서 실행됩니다.
+백엔드 주소는 `http://localhost:8080`입니다. `local` 프로필이 H2를 사용하므로 PostgreSQL을 따로 실행할 필요가 없습니다. 이 프로필의 DB와 JWT 설정은 개발 전용이며 운영에 사용하지 않습니다.
 
-### 3. 프론트엔드 실행
+### 2. 프론트엔드
 
-새 터미널에서 실행합니다.
+새 터미널을 프로젝트 루트에서 열어 실행합니다.
 
 ```powershell
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
-프론트엔드는 기본적으로 `http://localhost:3000`에서 실행됩니다. Next.js가 `/api/*` 요청을 로컬 백엔드로 전달합니다.
+브라우저에서 **http://localhost:3000**으로 접속합니다. 프론트엔드의 `/api/*` 요청은 기본적으로 로컬 백엔드에 전달됩니다. 백엔드 주소를 변경할 때는 프론트엔드 서버의 `BACKEND_URL`을 설정합니다.
 
-브라우저 자동 테스트는 백엔드와 프론트엔드를 실행한 상태에서 진행합니다.
+각 서버는 해당 터미널에서 `Ctrl+C`로 종료합니다. 이 방법은 빠른 개발·화면 확인용이며, 데이터 유지 확인에는 아래 PostgreSQL 실행 방식을 사용합니다.
+
+## 전체 Docker 실행: PostgreSQL 사용
+
+Docker 엔진과 Docker Compose가 필요합니다. Docker Desktop을 사용하는 경우 먼저 엔진을 실행합니다. 이 방식은 프론트엔드·백엔드·DB를 한 번에 실행하므로 별도의 로컬 Java·Node 서버를 띄우지 않습니다.
+
+현재 개발 PC에는 Docker와 WSL이 설치되어 있지 않으며, 컨테이너 실기동 검증은 GitHub Actions에서 수행했습니다. 아래 절차는 Docker가 설치된 환경에서 사용합니다.
+
+### 1. 환경변수 준비
+
+프로젝트 루트에서 처음 한 번 복사합니다. 기존 `.env`가 있으면 덮어쓰지 않습니다.
+
+```powershell
+Copy-Item .env.example .env
+```
+
+`.env`에 설정할 항목:
+
+- `POSTGRES_DB`: DB 이름. 기본 예시는 `assetly`.
+- `POSTGRES_USER`: DB 계정. 기본 예시는 `assetly`.
+- `POSTGRES_PASSWORD`: 새로 생성한 강력한 DB 비밀번호. 예시 값과 기본 비밀번호는 사용하지 않습니다.
+- `POSTGRES_PORT`: 호스트의 DB 포트. 기본값 `5432`, 로컬 호스트에만 바인딩됩니다.
+- `JWT_SECRET`: 48바이트 이상의 새 비밀값. 예시 값이면 운영 백엔드 시작이 차단됩니다.
+- `JWT_ACCESS_TOKEN_EXPIRES_IN`: access token 유효 시간(초). 기본값 `3600`.
+- `FRONTEND_PORT`: 브라우저 접속 포트. 기본값 `3000`.
+
+PowerShell에서 64바이트 무작위 JWT 비밀값을 생성하는 예시입니다.
+
+```powershell
+$bytes = New-Object byte[] 64
+$generator = [Security.Cryptography.RandomNumberGenerator]::Create()
+try {
+    $generator.GetBytes($bytes)
+    [Convert]::ToBase64String($bytes)
+} finally {
+    $generator.Dispose()
+}
+```
+
+생성한 값을 `.env`의 `JWT_SECRET`에 설정합니다. `.env`는 Git에서 제외됩니다. 비밀값을 문서·커밋·공개 로그에 남기지 않습니다. 루트 `.env`는 Compose가 읽으며 개별 Spring Boot 실행에 자동 적용되는 파일은 아닙니다.
+
+### 2. 구성 확인과 기동
+
+```powershell
+docker compose config --quiet
+docker compose up --build --wait --wait-timeout 180
+docker compose ps
+```
+
+세 서비스가 healthy이면 **http://localhost:3000**에 접속합니다. 포트 충돌 시 `.env`의 `FRONTEND_PORT` 또는 `POSTGRES_PORT`를 변경합니다.
+
+브라우저 접속용 포트는 프론트엔드에 연결됩니다. 백엔드의 `8080`은 Docker 내부 네트워크에서만 사용하고, PostgreSQL 호스트 포트는 `127.0.0.1`에만 바인딩됩니다. 이 구성 자체가 HTTPS나 공개 서버 방화벽 설정을 대신하지는 않습니다.
+
+기동 시 Flyway가 `backend/src/main/resources/db/migration`의 SQL을 적용하고 JPA는 스키마 일치 여부만 검증합니다. JPA의 자동 스키마 변경에 의존하지 않습니다.
+
+### 3. 로그, 종료와 데이터 보존
+
+```powershell
+docker compose logs -f backend frontend
+docker compose down
+```
+
+`docker compose down` 후 같은 프로젝트에서 다시 실행하면 PostgreSQL 볼륨을 재사용합니다. Compose 프로젝트 이름을 바꾸면 다른 볼륨을 사용할 수 있으므로 운영에서는 이름을 일관되게 유지합니다.
+
+**아래 명령은 DB 볼륨과 저장 데이터를 삭제합니다.** 개발 데이터를 의도적으로 초기화할 때만 사용합니다.
+
+```powershell
+docker compose down -v
+```
+
+## 테스트 실행
+
+### 백엔드
+
+프로젝트 루트 기준:
+
+```powershell
+cd backend
+.\mvnw.cmd test
+```
+
+H2 기반으로 인증, 조직 권한·데이터 격리, 기준 정보, 자산과 변경 이력 등을 검증합니다. PostgreSQL 실기동과 볼륨 유지 검증은 별도의 Docker CI 작업이 담당합니다.
+
+### 프론트엔드 정적 검사와 빌드
+
+프로젝트 루트 기준:
+
+```powershell
+cd frontend
+npm ci
+npm run lint
+npm run build
+```
+
+### 브라우저 핵심 흐름
+
+전용 테스트 백엔드와 프론트엔드를 먼저 실행한 상태에서 진행합니다.
 
 ```powershell
 cd frontend
@@ -565,34 +251,94 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-## GitHub Actions 자동 검증
+신규 사용자 온보딩, 조직 전환, 로그인·로그아웃, QR 로그인 복귀와 모바일 현장 수정 등을 검증합니다. 연결 주소와 프로젝트 설정은 `frontend/playwright.config.ts`를 기준으로 합니다. 실제 운영 환경을 테스트 대상으로 지정하지 않습니다.
 
-`.github/workflows/ci.yml`은 `main` push, Pull Request와 수동 실행에서 다음 작업을 수행합니다.
+## GitHub Actions
 
-1. Java 21과 Maven 캐시를 준비하고 백엔드 테스트를 실행합니다.
-2. Node.js 22와 npm 캐시를 준비하고 ESLint와 production build를 실행합니다.
-3. 앞선 검사가 통과하면 H2 기반 백엔드와 production 프론트엔드를 실행합니다.
-4. Chromium으로 조직 전환, 인증, QR 자산 조회와 현장 수정 흐름을 검증합니다.
-5. 성공 여부와 관계없이 서버 로그와 Playwright 실패 자료를 7일간 artifact로 보관합니다.
+설정 파일: [.github/workflows/ci.yml](.github/workflows/ci.yml)
 
-같은 브랜치에 새 커밋이 올라오면 진행 중이던 이전 실행은 취소됩니다. 저장소의 `Actions` 탭에서 작업별 결과와 실패 자료를 확인할 수 있습니다.
+`main` push, Pull Request와 수동 실행에서 다음 네 작업을 수행합니다.
 
-### Docker와 PostgreSQL 검증
+1. **백엔드 테스트**: Java 21과 Maven Wrapper로 테스트 실행.
+2. **프론트엔드 검사·빌드**: Node.js 22, `npm ci`, ESLint와 production build.
+3. **브라우저 테스트**: 앞선 두 작업 통과 후 H2 백엔드와 production 프론트엔드로 Playwright 실행.
+4. **Docker 및 PostgreSQL 검증**: 앞선 두 작업 통과 후 실제 운영 이미지·PostgreSQL로 데이터 유지와 Playwright 실행.
 
-`Docker 및 PostgreSQL 검증` 작업은 Ubuntu 24.04에서 다음 과정을 별도로 실행합니다.
+Docker 검증은 다음 순서로 진행합니다.
 
-1. 실행별 Compose 프로젝트 이름과 임시 DB 비밀번호·JWT 비밀값을 생성합니다.
-2. 실제 Dockerfile로 이미지를 빌드하고 PostgreSQL 16, 운영 프로필 백엔드와 프론트엔드가 모두 healthy가 될 때까지 기다립니다.
-3. 계정, 조직, 위치와 자산을 생성하고 컨테이너를 제거한 뒤 같은 볼륨으로 다시 실행합니다.
-4. 새 로그인으로 계정·Owner 권한·자산·위치·QR 코드·대시보드 데이터가 유지되는지 확인합니다.
-5. 전체 Playwright 테스트를 컨테이너 프론트엔드에 연결해 실행합니다.
-6. 컨테이너 로그와 실패 자료를 7일간 보관하고 해당 CI 실행의 컨테이너와 볼륨을 정리합니다.
+1. 실행별 Compose 프로젝트와 임시 비밀번호·JWT 비밀값 생성.
+2. 이미지 빌드, PostgreSQL 16과 운영 프로필 앱 기동, 세 서비스 healthy 확인.
+3. 계정·조직·위치·자산 생성 후 컨테이너 제거와 같은 볼륨으로 재기동.
+4. 새 로그인으로 계정·Owner 권한·자산·위치·QR 공개 코드·대시보드 데이터 유지 확인.
+5. 컨테이너 프론트엔드를 대상으로 Playwright 실행.
+6. 로그·실패 자료 보관과 해당 CI 컨테이너·볼륨 정리.
 
-데이터 유지 검증은 `scripts/verify-docker-persistence.mjs`에서 실행합니다. 이 스크립트는 컨테이너를 재생성하므로 `assetly-ci-실행번호-시도번호` 형식의 격리된 프로젝트만 허용합니다. 실제 운영 프로젝트에서는 실행하지 않습니다. CI의 테스트 데이터는 개발 PC나 운영 DB에 저장되지 않습니다.
+데이터 유지 검증 스크립트는 [scripts/verify-docker-persistence.mjs](scripts/verify-docker-persistence.mjs)입니다. 컨테이너를 재생성하므로 `assetly-ci-실행번호-시도번호` 형식의 격리된 프로젝트만 허용합니다. 운영 프로젝트에서는 실행하지 않습니다.
 
-## 다음 구현 목표
+같은 브랜치의 새 커밋이 올라오면 이전 진행 중 실행은 취소됩니다. 서버·컨테이너 로그와 Playwright 실패 자료는 artifact로 7일간 보관합니다. 결과는 저장소의 [Actions](https://github.com/wnsgh1a/assetly/actions)에서 확인합니다.
 
-다음 단계는 Phase 5~7의 제품 마감과 배포 준비입니다.
+**현재 워크플로는 자동 검증용 CI입니다. 실제 서버로 자동 배포하는 CD는 아직 없습니다.**
 
-1. 실제 서버 배포와 HTTPS 구성
-2. PostgreSQL 백업·복원 절차와 운영 점검 구성
+## 저장소 구조
+
+```text
+assetly/
+  .github/workflows/ci.yml          # 자동 검증
+  backend/
+    src/main/java/                 # API, 도메인, 인증과 권한
+    src/main/resources/
+      db/migration/                # Flyway V1~V4
+      application*.yml             # 공통, local, prod 설정
+    src/test/                      # 백엔드 테스트
+    pom.xml
+    mvnw.cmd
+    Dockerfile
+  frontend/
+    app/                           # 화면과 API 프록시
+    components/                    # 공통 UI
+    lib/                           # API 호출과 타입
+    e2e/                           # Playwright 테스트
+    playwright.config.ts
+    package.json
+    package-lock.json
+    Dockerfile
+  scripts/verify-docker-persistence.mjs
+  docs/                            # 기획, 설계, 테스트와 결정 기록
+  .env.example
+  docker-compose.yml
+  README.md
+```
+
+주요 도메인은 사용자(`User`), 조직(`Organization`), 조직 멤버(`OrganizationMember`), 자산(`Asset`), 위치(`Location`), 카테고리(`AssetCategory`), 변경 이력(`AssetHistory`)입니다.
+
+## 참고 문서
+
+- [프로젝트 가이드](docs/assetly-project-guide.md): 방향, 범위와 개발 원칙.
+- [v1 제품 기획](docs/assetly-v1-product-plan.md): 대상 사용자와 핵심 업무 흐름.
+- [화면 흐름](docs/assetly-screen-flow.md): 화면 구성과 사용자 시나리오.
+- [DB 설계](docs/assetly-db-design.md): 데이터 모델과 관계.
+- [API 명세](docs/assetly-api-spec.md): REST API와 권한·응답 구조.
+- [아키텍처](docs/assetly-architecture.md): 구성 요소와 배포 구조.
+- [개발 로드맵](docs/assetly-development-roadmap.md): 단계별 목표와 진행 상태.
+- [결정 기록](docs/assetly-decision-log.md): 변경 이유와 검증 기록.
+- [기능 테스트 명세](docs/assetly-functional-test-spec.md): 테스트 케이스, 실행 기준과 결과.
+
+계획 문서에는 향후 목표도 포함되어 있습니다. 현재 구현 여부는 이 README의 상태 요약과 결정 기록을 함께 확인합니다.
+
+## 남은 작업과 우선순위
+
+### v1 배포·운영 준비
+
+1. 실제 배포 서버와 도메인 결정, 운영 비밀값·접근 권한 관리.
+2. 서버에 Docker 구성 배포, 리버스 프록시와 HTTPS, 방화벽 구성.
+3. PostgreSQL 정기 백업, 보관 정책과 실제 복원 검증.
+4. 장애 확인용 로그·상태 점검, 재시작·업데이트·롤백 절차 정리.
+5. 공개 환경에서 회원가입부터 QR 수정까지 최종 검증과 화면 마감.
+
+컨테이너 재생성 후 데이터가 남는다는 검증은 **백업·복원 검증을 대신하지 않습니다.** 영속 볼륨이 있어도 서버나 볼륨 손실에 대비한 별도 백업이 필요합니다.
+
+### v1.1 이후 확장 후보
+
+이미지 업로드, 점검 기록, 대여·반납, 이메일 초대, Excel 내보내기, QR 라벨 PDF와 이메일 알림은 아직 구현하지 않았습니다. 실제 사용에서 필요성을 확인한 뒤 추가합니다.
+
+결제·요금제, 소셜 로그인, 네이티브 모바일 앱, 복잡한 통계와 슈퍼 어드민도 현재 v1 범위에 포함하지 않습니다. 우선 목표는 이미 구현한 핵심 흐름을 실제 운영 환경에서 안전하게 사용할 수 있게 마무리하는 것입니다.
