@@ -3,9 +3,10 @@ import { test } from "node:test";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Readable } from "node:stream";
+import { Readable, Writable } from "node:stream";
+import { EventEmitter } from "node:events";
 import { pipeline } from "node:stream/promises";
-import { parseArguments, backupDatabase, restoreDatabase } from "./lib/database-backup.mjs";
+import { parseArguments, backupDatabase, restoreDatabase, runDocker } from "./lib/database-backup.mjs";
 
 const archive = Buffer.concat([Buffer.from("PGDMP"), Buffer.from([0, 255, 13, 10, 128])]);
 
@@ -111,4 +112,28 @@ test("restore failure retains the new DB and reports no source change", async (t
     if (calls === 3) throw new Error("restore failed");
   } }), /retained for diagnosis/);
   assert.equal(calls, 3);
+});
+
+function earlyClosingProcess(code) {
+  return () => {
+    const child = new EventEmitter();
+    child.stdin = new Writable({ write(_chunk, _encoding, callback) {
+      callback(Object.assign(new Error("closed input"), { code: "EPIPE" }));
+    } });
+    child.kill = () => {};
+    setImmediate(() => child.emit("close", code, null));
+    return child;
+  };
+}
+
+test("archive listing permits early stdin closure only after successful process exit", async () => {
+  await runDocker([], { input: Readable.from([archive]), allowEarlyInputClose: true, spawnProcess: earlyClosingProcess(0) });
+});
+
+test("restore never ignores a broken input pipe", async () => {
+  await assert.rejects(runDocker([], { input: Readable.from([archive]), spawnProcess: earlyClosingProcess(0) }), { code: "EPIPE" });
+});
+
+test("archive listing never ignores an unsuccessful process exit", async () => {
+  await assert.rejects(runDocker([], { input: Readable.from([archive]), allowEarlyInputClose: true, spawnProcess: earlyClosingProcess(1) }), /failed/);
 });

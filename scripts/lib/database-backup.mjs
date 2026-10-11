@@ -47,8 +47,8 @@ export function postgresContainer() {
   return containers[0];
 }
 
-export async function runDocker(args, { input, output } = {}) {
-  const child = spawn("docker", args, {
+export async function runDocker(args, { input, output, allowEarlyInputClose = false, spawnProcess = spawn } = {}) {
+  const child = spawnProcess("docker", args, {
     cwd: workspace, stdio: [input ? "pipe" : "ignore", output ? "pipe" : "ignore", "inherit"],
     timeout: 900_000,
   });
@@ -60,7 +60,14 @@ export async function runDocker(args, { input, output } = {}) {
     });
   });
   const tasks = [completed];
-  if (input) tasks.push(pipeline(input, child.stdin));
+  if (input) tasks.push(pipeline(input, child.stdin).catch(async (error) => {
+    // Listing a large archive reads only its TOC and can close stdin before EOF.
+    if (allowEarlyInputClose && ["EPIPE", "ERR_STREAM_PREMATURE_CLOSE"].includes(error.code)) {
+      await completed;
+      return;
+    }
+    throw error;
+  }));
   if (output) tasks.push(pipeline(child.stdout, output));
   try {
     await Promise.all(tasks);
@@ -107,7 +114,7 @@ export async function restoreDatabase({ container, file, database, run = runDock
   const archive = resolve(file);
   await validateArchive(archive);
   // Check the archive before creating anything. Existing databases are never reused.
-  await run(["exec", "-i", container, "sh", "-c", 'exec pg_restore --list'], { input: createReadStream(archive) });
+  await run(["exec", "-i", container, "sh", "-c", 'exec pg_restore --list'], { input: createReadStream(archive), allowEarlyInputClose: true });
   await run(["exec", container, "sh", "-c", 'exec createdb -U "$POSTGRES_USER" --maintenance-db="$POSTGRES_DB" --template=template0 -- "$1"', "restore", database]);
   try {
     await run(["exec", "-i", container, "sh", "-c", 'exec pg_restore -U "$POSTGRES_USER" --dbname="$1" --no-owner --no-privileges --exit-on-error --single-transaction', "restore", database], {

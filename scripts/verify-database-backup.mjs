@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,9 +14,9 @@ const file = join(directory, "verification.dump");
 const tables = ["users", "organizations", "organization_members", "locations", "asset_categories", "assets", "asset_histories", "flyway_schema_history"];
 
 function sql(query, target = "") {
-  return execFileSync("docker", ["exec", container, "sh", "-c",
-    'exec psql -U "$POSTGRES_USER" -d "${1:-$POSTGRES_DB}" --no-psqlrc --set=ON_ERROR_STOP=1 --tuples-only --no-align -c "$2"',
-    "verify", target, query], { encoding: "utf8", timeout: 30_000, maxBuffer: 16 * 1024 * 1024 }).trim();
+  return execFileSync("docker", ["exec", "-i", container, "sh", "-c",
+    'exec psql -U "$POSTGRES_USER" -d "${1:-$POSTGRES_DB}" --no-psqlrc --set=ON_ERROR_STOP=1 --tuples-only --no-align',
+    "verify", target], { input: query, encoding: "utf8", timeout: 30_000, maxBuffer: 16 * 1024 * 1024 }).trim();
 }
 
 function fingerprint(target = "") {
@@ -32,6 +32,10 @@ function fingerprint(target = "") {
 try {
   assert.ok(Number(sql("SELECT count(*) FROM assets")) > 0, "Create persistence fixtures before verifying backup");
   assert.ok(Number(sql("SELECT count(*) FROM asset_histories")) > 0, "History must be present in the backup");
+  // Poorly compressible fixture exercises archives larger than a process pipe buffer.
+  sql(`INSERT INTO locations (organization_id, name, description, created_at, updated_at)
+    SELECT id, 'Backup stream ${randomUUID()}', '${randomBytes(256 * 1024).toString("hex")}', now(), now()
+    FROM organizations ORDER BY id LIMIT 1;`);
   const original = fingerprint();
   await backupDatabase({ container, output: file });
   await restoreDatabase({ container, file, database });

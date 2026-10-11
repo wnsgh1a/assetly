@@ -406,8 +406,9 @@ npm run test:e2e
 ### 2026-10-11 백업·별도 DB 복원 자동화
 
 - 안전성 테스트: `node --test scripts/database-backup.test.mjs`.
+- 로컬 결과: 12개 통과, 실패 0.
 - 검증 범위: CLI 인자, 바이너리 보존, 기존 파일 덮어쓰기 차단, 실패·잘못된 파일 정리, 아카이브 검사 선행, 새 DB 생성, 기존 DB 복원 차단과 실패 시 진단 DB 보존.
-- 실제 DB 케이스 `FT-OPS-BACKUP-001`: Docker CI에서 백업 후 새 DB에 복원하고 전체 앱 테이블·Flyway 기록 일치, 원본 불변, 기존 대상 보호와 identity 시퀀스 확인.
+- 실제 DB 케이스 `FT-OPS-BACKUP-001`: 큰 바이너리 아카이브 처리를 위한 난수 데이터를 포함해 Docker CI에서 백업 후 새 DB에 복원하고 전체 앱 테이블·Flyway 기록 일치, 원본 불변, 기존 대상 보호와 identity 시퀀스 확인.
 - 실제 DB 실행 결과: GitHub Actions 실행 후 기록한다. 로컬 PC에는 Docker가 없으므로 로컬 실기동 성공으로 기록하지 않는다.
 - 운영 범위: 정기 스케줄, 외부 보관·암호화와 운영 앱의 복원 DB 전환은 미설정.
 
