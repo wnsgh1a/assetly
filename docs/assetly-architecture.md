@@ -293,13 +293,17 @@ GitHub Actions에서 다음을 수행한다.
 - 백엔드 테스트
 - 프론트엔드 ESLint와 production build
 - H2 기반 백엔드와 production 프론트엔드를 연결한 Playwright 핵심 흐름
+- 실제 운영 Docker 이미지·PostgreSQL 기반 브라우저 테스트와 컨테이너 재생성 후 데이터 유지 검증
+- 백업 도구 안전성 테스트와 PostgreSQL 백업·별도 DB 복원 검증
 
 ### main 브랜치 머지
 
 - Pull Request와 동일한 전체 검증
-- 추후 Docker 이미지 빌드와 서버 배포 추가
+- Docker 이미지 빌드·검증 포함. 실제 서버 배포 자동화는 서버 결정 후 추가
 
 실패한 브라우저 검사의 서버 로그, 스크린샷과 trace는 GitHub Actions artifact로 7일간 보관한다. 배포 자동화는 실제 운영 서버가 결정된 뒤 별도 워크플로로 추가한다.
+
+DB 백업은 custom 아카이브로 생성하며 별도 새 DB에만 복원한다. 원본 DB와 앱 연결은 자동 변경하지 않는다. 정기 스케줄·외부 저장소·운영 전환은 미설정이며 상세 절차는 [백업·복원 가이드](assetly-backup-and-recovery.md)를 따른다. 백업 파일은 Git과 CI artifact에 올리지 않는다.
 
 ## 13. 테스트 전략
 

@@ -50,8 +50,8 @@ export function postgresContainer() {
 export async function runDocker(args, { input, output, allowEarlyInputClose = false, spawnProcess = spawn } = {}) {
   const child = spawnProcess("docker", args, {
     cwd: workspace, stdio: [input ? "pipe" : "ignore", output ? "pipe" : "ignore", "inherit"],
-    timeout: 900_000,
   });
+  const timeout = setTimeout(() => child.kill(), 900_000);
   const completed = new Promise((resolveResult, reject) => {
     child.once("error", reject);
     child.once("close", (code, signal) => {
@@ -75,6 +75,8 @@ export async function runDocker(args, { input, output, allowEarlyInputClose = fa
     child.kill();
     await Promise.allSettled(tasks);
     throw error;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable, Writable } from "node:stream";
 import { EventEmitter } from "node:events";
+import { spawn } from "node:child_process";
 import { pipeline } from "node:stream/promises";
 import { parseArguments, backupDatabase, restoreDatabase, runDocker } from "./lib/database-backup.mjs";
 
@@ -136,4 +137,11 @@ test("restore never ignores a broken input pipe", async () => {
 
 test("archive listing never ignores an unsuccessful process exit", async () => {
   await assert.rejects(runDocker([], { input: Readable.from([archive]), allowEarlyInputClose: true, spawnProcess: earlyClosingProcess(1) }), /failed/);
+});
+
+test("missing Docker executable rejects and clears its process timeout", async () => {
+  await assert.rejects(runDocker([], {
+    input: Readable.from([archive]),
+    spawnProcess: (_command, _args, options) => spawn("assetly-intentionally-missing-command", [], options),
+  }), { code: "ENOENT" });
 });
