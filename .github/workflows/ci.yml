@@ -124,3 +124,65 @@ jobs:
             frontend/test-results
           if-no-files-found: warn
           retention-days: 7
+
+  docker-tests:
+    name: Docker 및 PostgreSQL 검증
+    needs: [backend-tests, frontend-build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      COMPOSE_PROJECT_NAME: assetly-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      FRONTEND_PORT: "3100"
+      POSTGRES_PORT: "55432"
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:3100
+    steps:
+      - name: 저장소 가져오기
+        uses: actions/checkout@v7
+      - name: Node.js 22 준비
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: 실행 전용 비밀값 생성
+        run: |
+          node --input-type=module <<'NODE'
+          import { randomBytes } from 'node:crypto';
+          import { appendFileSync } from 'node:fs';
+          for (const name of ['POSTGRES_PASSWORD', 'JWT_SECRET']) {
+            const value = randomBytes(64).toString('hex');
+            console.log(`::add-mask::${value}`);
+            appendFileSync(process.env.GITHUB_ENV, `${name}=${value}\n`);
+          }
+          NODE
+      - name: 이미지 빌드 및 전체 서비스 준비
+        run: |
+          docker compose config --quiet
+          docker compose up --build --wait --wait-timeout 180
+          docker compose ps
+      - name: PostgreSQL 데이터 유지 검증
+        run: node scripts/verify-docker-persistence.mjs
+      - name: Chromium 준비
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: 운영 컨테이너 브라우저 테스트
+        working-directory: frontend
+        run: npm run test:e2e
+      - name: 컨테이너 로그 수집
+        if: always()
+        run: docker compose logs --no-color > docker.log 2>&1
+      - name: 실행 자료 보관
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-debug-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            docker.log
+            frontend/test-results
+          if-no-files-found: warn
+          retention-days: 7
+      - name: 실행 전용 컨테이너와 볼륨 정리
+        if: always()
+        run: docker compose down --volumes

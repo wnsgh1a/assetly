@@ -518,7 +518,7 @@ docker compose down
 docker compose down -v
 ```
 
-현재 개발 PC에는 Docker가 설치되어 있지 않아 이미지 빌드와 PostgreSQL 컨테이너 기동은 아직 실행 검증하지 못했습니다. Dockerfile과 Compose YAML, 애플리케이션 빌드, API 프록시, health endpoint와 운영 비밀값 차단은 개별 검증했습니다.
+현재 개발 PC에는 Docker와 WSL이 설치되어 있지 않습니다. 실제 이미지 빌드와 PostgreSQL 컨테이너 기동 검증은 GitHub Actions의 `Docker 및 PostgreSQL 검증` 작업에서 실행합니다. 로컬 컨테이너 실행에는 Docker 설치가 필요합니다.
 
 ## 개별 로컬 실행
 
@@ -574,6 +574,19 @@ npm run test:e2e
 5. 성공 여부와 관계없이 서버 로그와 Playwright 실패 자료를 7일간 artifact로 보관합니다.
 
 같은 브랜치에 새 커밋이 올라오면 진행 중이던 이전 실행은 취소됩니다. 저장소의 `Actions` 탭에서 작업별 결과와 실패 자료를 확인할 수 있습니다.
+
+### Docker와 PostgreSQL 검증
+
+`Docker 및 PostgreSQL 검증` 작업은 Ubuntu 24.04에서 다음 과정을 별도로 실행합니다.
+
+1. 실행별 Compose 프로젝트 이름과 임시 DB 비밀번호·JWT 비밀값을 생성합니다.
+2. 실제 Dockerfile로 이미지를 빌드하고 PostgreSQL 16, 운영 프로필 백엔드와 프론트엔드가 모두 healthy가 될 때까지 기다립니다.
+3. 계정, 조직, 위치와 자산을 생성하고 컨테이너를 제거한 뒤 같은 볼륨으로 다시 실행합니다.
+4. 새 로그인으로 계정·Owner 권한·자산·위치·QR 코드·대시보드 데이터가 유지되는지 확인합니다.
+5. 전체 Playwright 테스트를 컨테이너 프론트엔드에 연결해 실행합니다.
+6. 컨테이너 로그와 실패 자료를 7일간 보관하고 해당 CI 실행의 컨테이너와 볼륨을 정리합니다.
+
+데이터 유지 검증은 `scripts/verify-docker-persistence.mjs`에서 실행합니다. 이 스크립트는 컨테이너를 재생성하므로 `assetly-ci-실행번호-시도번호` 형식의 격리된 프로젝트만 허용합니다. 실제 운영 프로젝트에서는 실행하지 않습니다. CI의 테스트 데이터는 개발 PC나 운영 DB에 저장되지 않습니다.
 
 ## 다음 구현 목표
 
