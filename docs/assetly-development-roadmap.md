@@ -229,7 +229,7 @@ Phase 8. v1.1 기능 확장
 
 ## 9. Phase 7. 배포와 운영
 
-상태: 진행 중 - 운영 Dockerfile, 전체 Compose, 환경변수 검증, GitHub Actions CI와 실제 Docker·PostgreSQL 기동·데이터 영속성 검증 완료. 서버 배포, HTTPS와 백업·복원 구성은 미완료
+상태: 진행 중 - 운영 Dockerfile, 전체 Compose, 환경변수 검증, GitHub Actions CI와 실제 Docker·PostgreSQL 기동·데이터 영속성 검증 완료. 백업·별도 DB 복원 도구와 복원 CI 구성 추가. 서버 배포, HTTPS, 정기 백업·외부 보관과 운영 복구 리허설은 미완료
 
 목표:
 

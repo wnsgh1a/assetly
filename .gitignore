@@ -37,3 +37,8 @@ target/
 
 # Docker
 docker-data/
+
+# Database backups contain private application data
+backups/
+*.dump
+*.partial

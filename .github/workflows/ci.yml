@@ -54,6 +54,9 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: 의존성 설치
         run: npm ci
+      - name: 백업 도구 안전성 테스트
+        working-directory: .
+        run: node --test scripts/database-backup.test.mjs
       - name: 코드 검사
         run: npm run lint
       - name: 프로덕션 빌드
@@ -170,6 +173,8 @@ jobs:
       - name: 운영 컨테이너 브라우저 테스트
         working-directory: frontend
         run: npm run test:e2e
+      - name: PostgreSQL 백업 및 별도 DB 복원 검증
+        run: node scripts/verify-database-backup.mjs
       - name: 컨테이너 로그 수집
         if: always()
         run: |

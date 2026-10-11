@@ -16,6 +16,7 @@
 - Phase 5: 조직 전환, 모바일 내비게이션과 QR 현장 흐름 구현. 전체 화면의 제품 마감은 진행 중.
 - Phase 6: 현재 핵심 흐름의 백엔드·브라우저 테스트 자동화 완료.
 - Phase 7: 운영 컨테이너, CI, PostgreSQL 실기동·데이터 유지 검증 완료. 실제 배포·운영 준비는 진행 중.
+- 백업·복원: custom-format 백업과 새 DB 복원 도구, 안전성 테스트와 PostgreSQL 복원 CI 구성. 운영 정기 스케줄·외부 보관·앱 전환 리허설은 미설정.
 - Phase 8: 이미지 업로드, 점검, 대여·반납 등의 확장 기능은 미구현.
 
 ### 확인된 검증 결과
@@ -260,7 +261,7 @@ npm run test:e2e
 `main` push, Pull Request와 수동 실행에서 다음 네 작업을 수행합니다.
 
 1. **백엔드 테스트**: Java 21과 Maven Wrapper로 테스트 실행.
-2. **프론트엔드 검사·빌드**: Node.js 22, `npm ci`, ESLint와 production build.
+2. **프론트엔드 검사·빌드**: Node.js 22, `npm ci`, 백업 도구 안전성 테스트, ESLint와 production build.
 3. **브라우저 테스트**: 앞선 두 작업 통과 후 H2 백엔드와 production 프론트엔드로 Playwright 실행.
 4. **Docker 및 PostgreSQL 검증**: 앞선 두 작업 통과 후 실제 운영 이미지·PostgreSQL로 데이터 유지와 Playwright 실행.
 
@@ -271,13 +272,28 @@ Docker 검증은 다음 순서로 진행합니다.
 3. 계정·조직·위치·자산 생성 후 컨테이너 제거와 같은 볼륨으로 재기동.
 4. 새 로그인으로 계정·Owner 권한·자산·위치·QR 공개 코드·대시보드 데이터 유지 확인.
 5. 컨테이너 프론트엔드를 대상으로 Playwright 실행.
-6. 로그·실패 자료 보관과 해당 CI 컨테이너·볼륨 정리.
+6. DB 백업·새 DB 복원 후 전체 데이터와 이력·Flyway 기록 비교, identity 시퀀스와 기존 대상 덮어쓰기 차단 확인.
+7. 로그·실패 자료 보관과 해당 CI 컨테이너·볼륨 정리. DB 백업 파일은 업로드하지 않습니다.
 
 데이터 유지 검증 스크립트는 [scripts/verify-docker-persistence.mjs](scripts/verify-docker-persistence.mjs)입니다. 컨테이너를 재생성하므로 `assetly-ci-실행번호-시도번호` 형식의 격리된 프로젝트만 허용합니다. 운영 프로젝트에서는 실행하지 않습니다.
 
 같은 브랜치의 새 커밋이 올라오면 이전 진행 중 실행은 취소됩니다. 서버·컨테이너 로그와 Playwright 실패 자료는 artifact로 7일간 보관합니다. 결과는 저장소의 [Actions](https://github.com/wnsgh1a/assetly/actions)에서 확인합니다.
 
 **현재 워크플로는 자동 검증용 CI입니다. 실제 서버로 자동 배포하는 CD는 아직 없습니다.**
+
+## DB 백업과 복원
+
+Node.js 22 이상과 실행 중인 Compose PostgreSQL이 필요합니다. 프로젝트 루트에서 실행합니다.
+
+```powershell
+node scripts/database-backup.mjs backup
+node scripts/database-backup.mjs restore --file backups/실제백업파일.dump --database assetly_restore_check
+node --test scripts/database-backup.test.mjs
+```
+
+기본 백업은 `backups/`에 저장됩니다. 복원은 **새 `assetly_restore_*` DB**에만 허용하며 원본 DB와 앱 연결을 변경하지 않습니다. 기존 파일·DB는 덮어쓰지 않습니다. 백업 파일에는 개인정보와 비밀번호 해시가 들어 있으므로 외부 보관·암호화·접근 제한이 필요합니다.
+
+정기 실행과 외부 저장소 전송은 자동 설정되지 않습니다. 상세 절차와 장애 복구 기준은 [백업·복원 가이드](docs/assetly-backup-and-recovery.md)를 참고합니다.
 
 ## 저장소 구조
 
@@ -303,6 +319,8 @@ assetly/
     package-lock.json
     Dockerfile
   scripts/verify-docker-persistence.mjs
+  scripts/database-backup.mjs       # 백업·새 DB 복원 CLI
+  scripts/verify-database-backup.mjs # CI 전용 실제 복원 검증
   docs/                            # 기획, 설계, 테스트와 결정 기록
   .env.example
   docker-compose.yml
@@ -322,6 +340,7 @@ assetly/
 - [개발 로드맵](docs/assetly-development-roadmap.md): 단계별 목표와 진행 상태.
 - [결정 기록](docs/assetly-decision-log.md): 변경 이유와 검증 기록.
 - [기능 테스트 명세](docs/assetly-functional-test-spec.md): 테스트 케이스, 실행 기준과 결과.
+- [백업·복원 가이드](docs/assetly-backup-and-recovery.md): 백업 도구, 별도 DB 복원, 보관 정책과 장애 복구.
 
 계획 문서에는 향후 목표도 포함되어 있습니다. 현재 구현 여부는 이 README의 상태 요약과 결정 기록을 함께 확인합니다.
 
@@ -331,7 +350,7 @@ assetly/
 
 1. 실제 배포 서버와 도메인 결정, 운영 비밀값·접근 권한 관리.
 2. 서버에 Docker 구성 배포, 리버스 프록시와 HTTPS, 방화벽 구성.
-3. PostgreSQL 정기 백업, 보관 정책과 실제 복원 검증.
+3. 백업 도구를 운영 정기 스케줄·외부 저장소에 연결하고, 외부 사본 복원과 앱 전환 리허설 수행.
 4. 장애 확인용 로그·상태 점검, 재시작·업데이트·롤백 절차 정리.
 5. 공개 환경에서 회원가입부터 QR 수정까지 최종 검증과 화면 마감.
 
