@@ -21,6 +21,8 @@ async function api(path, method = "GET", body) {
     method,
     headers: {
       "Content-Type": "application/json",
+      // The server is recreated mid-test, so no socket may survive across requests.
+      Connection: "close",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
