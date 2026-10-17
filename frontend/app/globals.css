@@ -44,3 +44,20 @@ textarea {
   background: #cfe4d6;
   color: #143522;
 }
+
+h1, h2, h3, p, label {
+  overflow-wrap: anywhere;
+}
+
+input, select, textarea, fieldset {
+  min-width: 0;
+}
+
+section {
+  min-width: 0;
+}
+
+:focus-visible {
+  outline: 2px solid #245b3f;
+  outline-offset: 3px;
+}

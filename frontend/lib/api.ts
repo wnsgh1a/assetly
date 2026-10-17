@@ -17,6 +17,9 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 
   const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
   if (!response.ok) {
+    if (response.status === 401 && token && token === localStorage.getItem("assetly_token")) {
+      window.dispatchEvent(new Event("assetly:session-expired"));
+    }
     const body = (await response.json().catch(() => ({}))) as ErrorEnvelope;
     throw new ApiError(body.error?.message ?? "요청을 처리하지 못했습니다.", response.status, body.error?.code);
   }

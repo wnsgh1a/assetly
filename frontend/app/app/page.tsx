@@ -6,6 +6,7 @@ import { PackageSearch } from "lucide-react";
 import { statusLabels } from "@/components/asset-form";
 import { HistoryList } from "@/components/history-list";
 import { WorkspaceShell } from "@/components/workspace-shell";
+import { LoadError } from "@/components/load-error";
 import { ApiError, apiRequest } from "@/lib/api";
 import type { Asset, AssetHistory, Organization } from "@/lib/types";
 
@@ -33,13 +34,18 @@ function DashboardView({ organization }: { organization: Organization }) {
   const [dashboard, setDashboard] = useState(emptyDashboard);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    apiRequest<Dashboard>(`/organizations/${organization.id}/dashboard`)
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    apiRequest<Dashboard>(`/organizations/${organization.id}/dashboard`, { signal: controller.signal })
       .then(setDashboard)
-      .catch((caught) => setError(caught instanceof ApiError ? caught.message : "자산 현황을 불러오지 못했습니다."))
-      .finally(() => setLoading(false));
-  }, [organization.id]);
+      .catch((caught) => { if (!controller.signal.aborted) setError(caught instanceof ApiError ? caught.message : "자산 현황을 불러오지 못했습니다."); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [attempt, organization.id]);
 
   const metrics = [
     ["전체 자산", dashboard.totalAssets],
@@ -56,9 +62,9 @@ function DashboardView({ organization }: { organization: Organization }) {
         <p className="text-xs text-muted">{organization.myRole}</p>
       </div>
 
-      {error ? <p className="mt-5 border-l-2 border-red-600 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p> : null}
+      {error ? <LoadError message={error} onRetry={() => setAttempt((value) => value + 1)} /> : null}
 
-      <div className="mt-7 grid border-y border-line bg-white sm:grid-cols-2 xl:grid-cols-5">
+      {!error ? <><div className="mt-7 grid border-y border-line bg-white sm:grid-cols-2 xl:grid-cols-5">
         {metrics.map(([label, value], index) => (
           <div className={`border-line px-5 py-5 ${index ? "border-t sm:border-l" : ""} ${index % 2 === 0 && index ? "sm:border-l-0" : ""} xl:border-l xl:border-t-0 ${index === 0 ? "xl:border-l-0" : ""}`} key={label}>
             <p className="text-xs font-medium text-muted">{label}</p>
@@ -86,6 +92,7 @@ function DashboardView({ organization }: { organization: Organization }) {
           {loading ? <div className="min-h-[246px] border-t border-line bg-white px-5 py-12 text-center text-sm text-muted">활동을 불러오는 중입니다.</div> : <HistoryList items={dashboard.recentHistories} showAsset />}
         </section>
       </div>
+      </> : null}
     </section>
   );
 }

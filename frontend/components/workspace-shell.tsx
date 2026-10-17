@@ -12,6 +12,7 @@ import {
   saveSelectedOrganizationId,
 } from "@/lib/api";
 import type { Organization } from "@/lib/types";
+import { useSessionExpiry } from "@/lib/use-session-expiry";
 
 type WorkspaceShellProps = {
   eyebrow: string;
@@ -32,6 +33,7 @@ const navigation = [
 ] as const;
 
 export function WorkspaceShell({ eyebrow, title, children }: WorkspaceShellProps) {
+  useSessionExpiry();
   const pathname = usePathname();
   const router = useRouter();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -140,7 +142,7 @@ export function WorkspaceShell({ eyebrow, title, children }: WorkspaceShellProps
             .map(({ href, label, icon: Icon }) => {
               const active = href === "/app" ? pathname === href : pathname.startsWith(href);
               return (
-                <Link className={`flex shrink-0 items-center gap-2 px-3 py-2 text-xs transition-colors md:w-full md:gap-3 md:py-2.5 md:text-sm ${active ? "bg-white/10 font-medium text-white" : "text-white/55 hover:bg-white/5 hover:text-white"}`} href={href} key={href}>
+                <Link aria-current={active ? "page" : undefined} className={`flex shrink-0 items-center gap-2 px-3 py-2 text-xs transition-colors md:w-full md:gap-3 md:py-2.5 md:text-sm ${active ? "bg-white/10 font-medium text-white" : "text-white/55 hover:bg-white/5 hover:text-white"}`} href={href} key={href}>
                   <Icon size={17} />
                   {label}
                 </Link>

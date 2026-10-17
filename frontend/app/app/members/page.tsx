@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Check, Trash2, UserPlus } from "lucide-react";
 import { WorkspaceShell } from "@/components/workspace-shell";
+import { LoadError } from "@/components/load-error";
 import { ApiError, apiRequest } from "@/lib/api";
 import type { MemberRole, Organization, OrganizationMember } from "@/lib/types";
 
@@ -22,6 +23,8 @@ function Members({ organization }: { organization: Organization }) {
   const [submitting, setSubmitting] = useState(false);
   const [busyMemberId, setBusyMemberId] = useState<number>();
   const [error, setError] = useState("");
+  const [loadFailed, setLoadFailed] = useState(false);
+  const editable = ["OWNER", "ADMIN"].includes(organization.myRole);
   const [notice, setNotice] = useState("");
 
   const assignableRoles = useMemo<MemberRole[]>(
@@ -30,18 +33,21 @@ function Members({ organization }: { organization: Organization }) {
   );
 
   const loadMembers = useCallback(async () => {
+    if (!["OWNER", "ADMIN"].includes(organization.myRole)) return;
     setLoading(true);
+    setLoadFailed(false);
     setError("");
     try {
       const items = await apiRequest<OrganizationMember[]>(`/organizations/${organization.id}/members`);
       setMembers(items);
       setDraftRoles(Object.fromEntries(items.map((member) => [member.id, member.role])));
     } catch (caught) {
+      setLoadFailed(true);
       setError(caught instanceof ApiError ? caught.message : "멤버 목록을 불러오지 못했습니다.");
     } finally {
       setLoading(false);
     }
-  }, [organization.id]);
+  }, [organization.id, organization.myRole]);
 
   useEffect(() => {
     void loadMembers();
@@ -106,8 +112,10 @@ function Members({ organization }: { organization: Organization }) {
   }
 
   function canManage(member: OrganizationMember) {
-    return organization.myRole === "OWNER" || ["MANAGER", "MEMBER"].includes(member.role);
+    return organization.myRole === "OWNER" || (organization.myRole === "ADMIN" && ["MANAGER", "MEMBER"].includes(member.role));
   }
+
+  if (!editable) return <section className="px-5 py-8 md:px-8"><p role="alert" className="text-sm text-red-800">멤버 관리 권한이 없습니다.</p></section>;
 
   return (
     <section className="px-5 py-7 md:px-8 md:py-8">
@@ -137,13 +145,13 @@ function Members({ organization }: { organization: Organization }) {
           </button>
         </form>
 
-        {error ? <p className="mt-5 border-l-2 border-red-600 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">{error}</p> : null}
+        {error ? loadFailed ? <LoadError message={error} onRetry={() => void loadMembers()} /> : <p className="mt-5 border-l-2 border-red-600 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">{error}</p> : null}
         {notice ? <p className="mt-5 border-l-2 border-brand bg-[#f0f6f2] px-3 py-2 text-sm text-[#245b3f]" role="status">{notice}</p> : null}
 
         <div className="mt-6 overflow-x-auto border border-line bg-white">
           {loading ? (
             <p className="px-5 py-10 text-center text-sm text-muted">멤버 목록을 불러오는 중입니다.</p>
-          ) : members.length === 0 ? (
+          ) : loadFailed ? null : members.length === 0 ? (
             <p className="px-5 py-10 text-center text-sm text-muted">등록된 멤버가 없습니다.</p>
           ) : (
             <table className="w-full min-w-[720px] border-collapse text-left text-sm">

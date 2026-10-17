@@ -5,16 +5,17 @@ import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, ScanLine } from "lucide-react";
 import { AssetForm, statusLabels } from "@/components/asset-form";
-import { HistoryList } from "@/components/history-list";
+import { AssetHistory } from "@/components/asset-history";
 import { ApiError, apiRequest, clearAccessToken, saveSelectedOrganizationId } from "@/lib/api";
-import type { AssetHistoryPage, Organization, PublicAsset } from "@/lib/types";
+import type { Organization, PublicAsset } from "@/lib/types";
+import { useSessionExpiry } from "@/lib/use-session-expiry";
 
 export default function PublicAssetPage() {
+  useSessionExpiry();
   const params = useParams<{ publicCode: string }>();
   const pathname = usePathname();
   const router = useRouter();
   const [result, setResult] = useState<PublicAsset>();
-  const [histories, setHistories] = useState<AssetHistoryPage>();
   const [historyVersion, setHistoryVersion] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -36,12 +37,6 @@ export default function PublicAssetPage() {
       .finally(() => setLoading(false));
   }, [params.publicCode, pathname, router]);
 
-  useEffect(() => {
-    if (!result) return;
-    apiRequest<AssetHistoryPage>(`/organizations/${result.organizationId}/assets/${result.asset.id}/histories?size=10`)
-      .then(setHistories)
-      .catch(() => setHistories(undefined));
-  }, [historyVersion, result]);
 
   if (loading) return <main className="grid min-h-screen place-items-center bg-panel"><p className="text-sm text-muted">QR 자산 정보를 확인하는 중입니다.</p></main>;
   if (!result) return <main className="grid min-h-screen place-items-center bg-panel px-5"><div className="max-w-sm text-center"><ScanLine size={28} className="mx-auto text-muted" /><h1 className="mt-4 text-lg font-semibold">자산을 열 수 없습니다</h1><p className="mt-2 text-sm text-muted">{error || "QR 코드가 올바른지 확인해 주세요."}</p><Link className="mt-6 inline-flex h-10 items-center bg-ink px-4 text-sm font-semibold text-white" href="/app">워크스페이스로 이동</Link></div></main>;
@@ -66,14 +61,14 @@ export default function PublicAssetPage() {
         <div className="border-b border-line pb-5">
           <p className="text-xs font-medium text-brand">QR ASSET · {result.organizationName}</p>
           <h1 className="mt-2 text-2xl font-semibold">{asset.name}</h1>
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted"><span>{asset.assetCode}</span><span>{statusLabels[asset.status]}</span><span>{asset.location?.name ?? "위치 미지정"}</span></div>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted"><span className="min-w-0 break-all">{asset.assetCode}</span><span>{statusLabels[asset.status]}</span><span className="min-w-0 break-words">{asset.location?.name ?? "위치 미지정"}</span></div>
         </div>
         <section className="mt-7 bg-white p-5 sm:p-6">
           <AssetForm asset={asset} onSaved={(saved) => { setResult((current) => current ? { ...current, asset: saved } : current); setHistoryVersion((value) => value + 1); }} organization={organization} />
         </section>
         <section className="mt-8">
           <h2 className="mb-3 text-sm font-semibold">최근 변경 이력</h2>
-          <HistoryList items={histories?.items ?? []} />
+          <AssetHistory key={asset.id} assetId={asset.id} organizationId={organization.id} revision={historyVersion} />
         </section>
       </div>
     </main>

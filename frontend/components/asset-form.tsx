@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Save } from "lucide-react";
 import { ApiError, apiRequest } from "@/lib/api";
+import { LoadError } from "@/components/load-error";
 import type { Asset, AssetCategory, AssetLocation, AssetStatus, AssignableUser, Organization } from "@/lib/types";
 
 export const statusLabels: Record<AssetStatus, string> = {
@@ -38,35 +39,49 @@ export function AssetForm({ organization, asset, onSaved }: AssetFormProps) {
   const [locations, setLocations] = useState<AssetLocation[]>([]);
   const [assignees, setAssignees] = useState<AssignableUser[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(true);
+  const [optionsError, setOptionsError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  useEffect(() => {
-    Promise.all([
-      apiRequest<AssetCategory[]>(`/organizations/${organization.id}/categories`),
-      apiRequest<AssetLocation[]>(`/organizations/${organization.id}/locations`),
-      apiRequest<AssignableUser[]>(`/organizations/${organization.id}/assignees`),
+  const loadOptions = useCallback(async (signal?: AbortSignal) => {
+    setLoadingOptions(true);
+    setOptionsError("");
+    await Promise.all([
+      apiRequest<AssetCategory[]>(`/organizations/${organization.id}/categories`, { signal }),
+      apiRequest<AssetLocation[]>(`/organizations/${organization.id}/locations`, { signal }),
+      apiRequest<AssignableUser[]>(`/organizations/${organization.id}/assignees`, { signal }),
     ])
       .then(([categoryItems, locationItems, userItems]) => {
+        if (signal?.aborted) return;
         setCategories(categoryItems);
         setLocations(locationItems);
         setAssignees(userItems);
       })
-      .catch((caught) => setError(caught instanceof ApiError ? caught.message : "선택 항목을 불러오지 못했습니다."))
-      .finally(() => setLoadingOptions(false));
+      .catch((caught) => { if (!signal?.aborted) setOptionsError(caught instanceof ApiError ? caught.message : "선택 항목을 불러오지 못했습니다."); })
+      .finally(() => { if (!signal?.aborted) setLoadingOptions(false); });
   }, [organization.id]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadOptions(controller.signal);
+    return () => controller.abort();
+  }, [loadOptions]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (creating && !fullEditable) return;
+    if (!operationalEditable || loadingOptions || optionsError || submitting || (creating && !fullEditable)) return;
+    if (!assetCode.trim() || !name.trim()) {
+      setError("자산번호와 자산명은 공백만 입력할 수 없습니다.");
+      return;
+    }
     setSubmitting(true);
     setError("");
     setNotice("");
     try {
       const body = {
-        assetCode,
-        name,
+        assetCode: assetCode.trim(),
+        name: name.trim(),
         description,
         status,
         categoryId: categoryId ? Number(categoryId) : null,
@@ -105,7 +120,9 @@ export function AssetForm({ organization, asset, onSaved }: AssetFormProps) {
 
   return (
     <form onSubmit={submit}>
-      <div className="grid gap-x-5 gap-y-5 md:grid-cols-2">
+      {optionsError ? <LoadError message={optionsError} onRetry={() => void loadOptions()} /> : null}
+      {loadingOptions ? <p className="mb-4 text-sm text-muted" role="status">선택 항목을 불러오는 중입니다.</p> : null}
+      <fieldset className="grid min-w-0 gap-x-5 gap-y-5 md:grid-cols-2" disabled={submitting}>
         <label><span className="text-sm font-medium">자산번호</span><input className={inputClass} disabled={!fullEditable} maxLength={100} onChange={(event) => setAssetCode(event.target.value)} required value={assetCode} /></label>
         <label><span className="text-sm font-medium">자산명</span><input className={inputClass} disabled={!fullEditable} maxLength={150} onChange={(event) => setName(event.target.value)} required value={name} /></label>
         <label><span className="text-sm font-medium">상태</span><select className={inputClass} disabled={!operationalEditable} onChange={(event) => setStatus(event.target.value as AssetStatus)} value={status}>{statuses.map((item) => <option key={item} value={item}>{statusLabels[item]}</option>)}</select></label>
@@ -115,14 +132,14 @@ export function AssetForm({ organization, asset, onSaved }: AssetFormProps) {
         <label><span className="text-sm font-medium">구매일</span><input className={inputClass} disabled={!fullEditable} onChange={(event) => setPurchaseDate(event.target.value)} type="date" value={purchaseDate} /></label>
         <label><span className="text-sm font-medium">구매 가격</span><input className={inputClass} disabled={!fullEditable} min="0" onChange={(event) => setPurchasePrice(event.target.value)} step="0.01" type="number" value={purchasePrice} /></label>
         <label className="md:col-span-2"><span className="text-sm font-medium">설명</span><textarea className="mt-2 min-h-24 w-full resize-y border border-line bg-white px-3 py-3 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:bg-[#eceeeb] disabled:text-muted" disabled={!fullEditable} maxLength={2000} onChange={(event) => setDescription(event.target.value)} value={description} /></label>
-      </div>
+      </fieldset>
 
       {error ? <p className="mt-5 border-l-2 border-red-600 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">{error}</p> : null}
       {notice ? <p className="mt-5 border-l-2 border-brand bg-[#f0f6f2] px-3 py-2 text-sm text-[#245b3f]" role="status">{notice}</p> : null}
 
       {operationalEditable ? (
         <div className="mt-6 flex justify-end border-t border-line pt-5">
-          <button className="flex h-10 items-center gap-2 bg-ink px-4 text-sm font-semibold text-white hover:bg-brand disabled:cursor-not-allowed disabled:opacity-50" disabled={submitting || loadingOptions} type="submit"><Save size={16} />{submitting ? "저장 중" : creating ? "자산 등록" : "변경사항 저장"}</button>
+          <button className="flex h-10 items-center gap-2 bg-ink px-4 text-sm font-semibold text-white hover:bg-brand disabled:cursor-not-allowed disabled:opacity-50" disabled={submitting || loadingOptions || !!optionsError} type="submit"><Save size={16} />{submitting ? "저장 중" : creating ? "자산 등록" : "변경사항 저장"}</button>
         </div>
       ) : <p className="mt-6 text-sm text-muted">자산 정보를 조회할 수 있으며 변경 권한은 없습니다.</p>}
     </form>

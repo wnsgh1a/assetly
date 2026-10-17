@@ -2,7 +2,8 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, PackageSearch, Plus, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, PackageSearch, Plus, Search, X } from "lucide-react";
+import { LoadError } from "@/components/load-error";
 import { statusLabels } from "@/components/asset-form";
 import { WorkspaceShell } from "@/components/workspace-shell";
 import { ApiError, apiRequest } from "@/lib/api";
@@ -28,33 +29,41 @@ function AssetList({ organization }: { organization: Organization }) {
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [optionsError, setOptionsError] = useState("");
   const canCreate = ["OWNER", "ADMIN"].includes(organization.myRole);
 
-  useEffect(() => {
-    Promise.all([
+  const loadOptions = useCallback(async () => {
+    setOptionsError("");
+    await Promise.all([
       apiRequest<AssetCategory[]>(`/organizations/${organization.id}/categories`),
       apiRequest<AssetLocation[]>(`/organizations/${organization.id}/locations`),
     ]).then(([categoryItems, locationItems]) => {
       setCategories(categoryItems);
       setLocations(locationItems);
-    }).catch(() => undefined);
+    }).catch(() => setOptionsError("검색 필터를 불러오지 못했습니다."));
   }, [organization.id]);
+  useEffect(() => { void loadOptions(); }, [loadOptions]);
 
-  const loadAssets = useCallback(async () => {
+  const loadAssets = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setError("");
     const params = new URLSearchParams({ page: String(page), size: "20" });
     Object.entries(filters).forEach(([key, value]) => { if (value) params.set(key, value); });
     try {
-      setResult(await apiRequest<AssetPage>(`/organizations/${organization.id}/assets?${params}`));
+      const items = await apiRequest<AssetPage>(`/organizations/${organization.id}/assets?${params}`, { signal });
+      if (!signal?.aborted) setResult(items);
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : "자산 목록을 불러오지 못했습니다.");
+      if (!signal?.aborted) setError(caught instanceof ApiError ? caught.message : "자산 목록을 불러오지 못했습니다.");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, [filters, organization.id, page]);
 
-  useEffect(() => { void loadAssets(); }, [loadAssets]);
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadAssets(controller.signal);
+    return () => controller.abort();
+  }, [loadAssets]);
 
   function search(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -70,7 +79,7 @@ function AssetList({ organization }: { organization: Organization }) {
           {canCreate ? <Link className="flex h-10 items-center justify-center gap-2 bg-ink px-4 text-sm font-semibold text-white hover:bg-brand" href="/app/assets/new"><Plus size={16} />자산 등록</Link> : null}
         </div>
 
-        <form className="grid gap-2 border-b border-line py-5 md:grid-cols-[minmax(180px,1fr)_150px_160px_160px_auto]" onSubmit={search}>
+        <form className="grid gap-2 border-b border-line py-5 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_130px_140px_140px_auto]" onSubmit={search}>
           <label className="relative"><span className="sr-only">검색어</span><Search className="absolute left-3 top-3 text-muted" size={16} /><input className="h-10 w-full border border-line bg-white pl-9 pr-3 text-sm outline-none focus:border-brand" onChange={(event) => setDraft({ ...draft, keyword: event.target.value })} placeholder="자산명 또는 자산번호" value={draft.keyword} /></label>
           <select aria-label="상태 필터" className="h-10 border border-line bg-white px-3 text-sm outline-none focus:border-brand" onChange={(event) => setDraft({ ...draft, status: event.target.value })} value={draft.status}><option value="">모든 상태</option>{(Object.keys(statusLabels) as AssetStatus[]).map((item) => <option key={item} value={item}>{statusLabels[item]}</option>)}</select>
           <select aria-label="카테고리 필터" className="h-10 border border-line bg-white px-3 text-sm outline-none focus:border-brand" onChange={(event) => setDraft({ ...draft, categoryId: event.target.value })} value={draft.categoryId}><option value="">모든 카테고리</option>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
@@ -78,11 +87,12 @@ function AssetList({ organization }: { organization: Organization }) {
           <button className="h-10 bg-ink px-4 text-sm font-semibold text-white hover:bg-brand" type="submit">조회</button>
         </form>
 
-        {error ? <p className="mt-5 border-l-2 border-red-600 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p> : null}
+        {optionsError ? <LoadError message={optionsError} onRetry={() => void loadOptions()} /> : null}
+        {error ? <LoadError message={error} onRetry={() => void loadAssets()} /> : null}
 
         <div className="mt-6 overflow-x-auto border border-line bg-white">
           <div className="grid min-w-[850px] grid-cols-[minmax(180px,1.3fr)_130px_130px_130px_120px_110px] border-b border-line bg-[#f7f8f5] px-4 py-3 text-xs font-medium text-muted"><span>자산</span><span>자산번호</span><span>카테고리</span><span>위치</span><span>상태</span><span className="text-right">수정일</span></div>
-          {loading ? <p className="px-5 py-12 text-center text-sm text-muted">자산 목록을 불러오는 중입니다.</p> : result.items.length === 0 ? (
+          {loading ? <p className="px-5 py-12 text-center text-sm text-muted" role="status">자산 목록을 불러오는 중입니다.</p> : error ? null : result.items.length === 0 ? (
             <div className="grid min-h-56 place-items-center px-5 py-10 text-center"><div><PackageSearch className="mx-auto text-muted" size={25} /><p className="mt-4 text-sm font-medium">조건에 맞는 자산이 없습니다</p><p className="mt-1 text-xs text-muted">등록된 자산이 없거나 검색 조건을 변경해야 합니다.</p></div></div>
           ) : (
             <div className="divide-y divide-line">{result.items.map((asset) => (
@@ -93,7 +103,8 @@ function AssetList({ organization }: { organization: Organization }) {
           )}
         </div>
 
-        <div className="mt-4 flex items-center justify-between text-sm"><span className="text-muted">총 {result.totalElements}개</span><div className="flex items-center gap-2"><button aria-label="이전 페이지" className="grid h-9 w-9 place-items-center border border-line bg-white disabled:opacity-30" disabled={page === 0 || loading} onClick={() => setPage((value) => value - 1)} type="button"><ChevronLeft size={17} /></button><span className="min-w-16 text-center text-xs text-muted">{result.totalPages ? page + 1 : 0} / {result.totalPages}</span><button aria-label="다음 페이지" className="grid h-9 w-9 place-items-center border border-line bg-white disabled:opacity-30" disabled={page + 1 >= result.totalPages || loading} onClick={() => setPage((value) => value + 1)} type="button"><ChevronRight size={17} /></button></div></div>
+        {Object.values(filters).some(Boolean) ? <button className="mt-4 inline-flex min-h-9 items-center gap-2 text-sm text-muted hover:text-ink" onClick={() => { setDraft(emptyFilters); setFilters(emptyFilters); setPage(0); }} type="button"><X size={15} />검색 조건 초기화</button> : null}
+        {!error ? <div className="mt-4 flex items-center justify-between text-sm"><span className="text-muted">{loading ? "조회 중" : `총 ${result.totalElements}개`}</span><div className="flex items-center gap-2"><button aria-label="이전 페이지" title="이전 페이지" className="grid h-9 w-9 place-items-center border border-line bg-white disabled:opacity-30" disabled={page === 0 || loading} onClick={() => setPage((value) => value - 1)} type="button"><ChevronLeft size={17} /></button><span className="min-w-16 text-center text-xs text-muted">{result.totalPages ? page + 1 : 0} / {result.totalPages}</span><button aria-label="다음 페이지" title="다음 페이지" className="grid h-9 w-9 place-items-center border border-line bg-white disabled:opacity-30" disabled={page + 1 >= result.totalPages || loading} onClick={() => setPage((value) => value + 1)} type="button"><ChevronRight size={17} /></button></div></div> : null}
       </div>
     </section>
   );
