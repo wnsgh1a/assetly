@@ -371,6 +371,8 @@
 
 로컬 검증: ESLint·production build 성공, Playwright 27개 통과·5개 조건부 제외. 실제 배포와 운영 자동화는 별도 미완료 상태로 유지한다.
 
+원격 검증: [GitHub Actions 실행](https://github.com/wnsgh1a/assetly/actions/runs/39050684930), 코드 커밋 `8abc2a2`의 네 작업 모두 성공. 백엔드 58개, H2·PostgreSQL 브라우저 각각 27개 통과·5개 조건부 제외, 백업 안전성 13개와 실제 데이터 유지·복원 검증 통과. 로컬 테스트용 H2는 검증 후 초기화했다.
+
 ## 24. 다음 결정 필요 항목
 
 아직 확정이 필요한 항목:
